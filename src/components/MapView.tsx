@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import 'mapbox-gl/dist/mapbox-gl.css'; // Mapboxのスタイル崩れ防止
-import { fetchSurroundingFacts } from "../lib/facts"; // 相対パスに変更
+import 'mapbox-gl/dist/mapbox-gl.css';
+import { fetchSurroundingFacts } from "../lib/facts";
 import FactCard from "./FactCard";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
@@ -16,34 +16,56 @@ export default function MapView() {
   useEffect(() => {
     if (!mapContainer.current) return;
 
-    navigator.geolocation.getCurrentPosition(async (pos) => {
-      const { latitude, longitude } = pos.coords;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude, longitude } = pos.coords;
 
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: "mapbox://styles/mapbox/streets-v12",
-        center: [longitude, latitude],
-        zoom: 15,
-      });
+        if (!map.current) {
+          map.current = new mapboxgl.Map({
+            container: mapContainer.current!,
+            style: "mapbox://styles/mapbox/streets-v12",
+            center: [longitude, latitude],
+            zoom: 15,
+          });
 
-      new mapboxgl.Marker({ color: "red" })
-        .setLngLat([longitude, latitude])
-        .addTo(map.current!);
+          new mapboxgl.Marker({ color: "red" })
+            .setLngLat([longitude, latitude])
+            .addTo(map.current);
 
-      const initialFacts = await fetchSurroundingFacts(latitude, longitude);
-      setFacts(initialFacts);
+          map.current.on("moveend", async () => {
+            try {
+              const center = map.current!.getCenter();
+              const newFacts = await fetchSurroundingFacts(center.lat, center.lng);
+              setFacts(newFacts);
+            } catch (e) {
+              console.error("Facts取得エラー:", e);
+            }
+          });
+        }
 
-      map.current!.on("moveend", async () => {
-        const center = map.current!.getCenter();
-        const newFacts = await fetchSurroundingFacts(center.lat, center.lng);
-        setFacts(newFacts);
-      });
-    });
+        fetchSurroundingFacts(latitude, longitude)
+          .then(setFacts)
+          .catch((e) => console.error("Facts取得エラー:", e));
+      },
+      (err) => {
+        console.error("位置情報取得エラー:", err);
+        // 位置情報が取れなくても東京駅を中心に地図を表示
+        if (!map.current && mapContainer.current) {
+          map.current = new mapboxgl.Map({
+            container: mapContainer.current,
+            style: "mapbox://styles/mapbox/streets-v12",
+            center: [139.7671, 35.6812],
+            zoom: 14,
+          });
+        }
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   }, []);
 
   return (
-    <div className="w-full h-[80vh] rounded-lg overflow-hidden relative">
-      <div ref={mapContainer} className="w-full h-full" />
+    <div style={{ width: "100%", height: "80vh", minHeight: "500px", position: "relative" }}>
+      <div ref={mapContainer} style={{ width: "100%", height: "100%" }} />
       {facts && <FactCard facts={facts} />}
     </div>
   );
