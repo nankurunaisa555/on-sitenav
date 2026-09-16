@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
-import { fetchSurroundingFacts } from "@/lib/facts";
+import 'mapbox-gl/dist/mapbox-gl.css'; // Mapboxのスタイル崩れ防止
+import { fetchSurroundingFacts } from "../lib/facts"; // 相対パスに変更
 import FactCard from "./FactCard";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN!;
