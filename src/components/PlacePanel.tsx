@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CategoryFilter from "./CategoryFilter";
 import { CATEGORIES, CATEGORY_MAP } from "@/lib/categories";
 import { formatDistance, walkMinutes } from "@/lib/geo";
@@ -19,6 +19,9 @@ type Props = {
   onResetCategory: () => void;
 };
 
+const PEEK_VH = 38;
+const EXPANDED_VH = 72;
+
 export default function PlacePanel({
   places,
   radiusM,
@@ -31,7 +34,42 @@ export default function PlacePanel({
   onResetCategory,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [dragOffset, setDragOffset] = useState<number | null>(null);
+  const dragStart = useRef<{ y: number; expanded: boolean } | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
+
+  // ハンドル/ヘッダーを上下にドラッグして伸縮。離した時点で近い方へスナップ
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      dragStart.current = { y: e.clientY, expanded };
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // 一部環境（合成イベント等）では失敗するが、キャプチャ無しでも動作する
+      }
+    },
+    [expanded],
+  );
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragStart.current) return;
+    setDragOffset(dragStart.current.y - e.clientY);
+  }, []);
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    const start = dragStart.current;
+    dragStart.current = null;
+    setDragOffset(null);
+    if (!start) return;
+    const delta = start.y - e.clientY; // 上方向が正
+    if (Math.abs(delta) < 8) {
+      setExpanded((v) => !v); // タップ扱い
+    } else {
+      setExpanded(delta > 0);
+    }
+  }, []);
+
+  const baseVh = expanded ? EXPANDED_VH : PEEK_VH;
+  const dragVh = dragOffset === null ? 0 : (dragOffset / window.innerHeight) * 100;
+  const heightVh = Math.min(EXPANDED_VH, Math.max(PEEK_VH, baseVh + dragVh));
 
   const counts = useMemo(() => {
     const m = new Map<CategoryKey, number>();
@@ -58,26 +96,39 @@ export default function PlacePanel({
   return (
     <section
       aria-label="周辺施設"
-      className={`pointer-events-auto flex w-full min-w-0 flex-col rounded-t-2xl bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.15)] transition-[height] duration-300 ${
-        expanded ? "h-[72dvh]" : "h-[38dvh]"
+      style={{ height: `${heightVh}dvh` }}
+      className={`pointer-events-auto flex w-full min-w-0 flex-col rounded-t-2xl bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.15)] ${
+        dragOffset === null ? "transition-[height] duration-300" : ""
       }`}
     >
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
+      {/* ハンドル + ヘッダー: ドラッグで伸縮、タップで切り替え */}
+      <div
+        role="button"
+        tabIndex={0}
         aria-expanded={expanded}
-        className="flex w-full flex-col items-center pt-2 pb-1"
+        aria-label={expanded ? "一覧を縮める" : "一覧を広げる"}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setExpanded((v) => !v);
+          }
+        }}
+        className="cursor-grab touch-none select-none active:cursor-grabbing"
       >
-        <span className="h-1.5 w-10 rounded-full bg-gray-300" />
-        <span className="sr-only">{expanded ? "一覧を縮める" : "一覧を広げる"}</span>
-      </button>
-
-      <header className="flex items-baseline justify-between px-4 pb-2">
-        <h2 className="text-base font-bold text-gray-900">周辺施設</h2>
-        <p className="text-xs text-gray-500">
-          {loading ? "検索中…" : `半径${formatDistance(radiusM)}・${places.length}件`}
-        </p>
-      </header>
+        <div className="flex w-full flex-col items-center pt-2 pb-1">
+          <span className="h-1.5 w-10 rounded-full bg-gray-300" />
+        </div>
+        <header className="flex items-baseline justify-between px-4 pb-2">
+          <h2 className="text-base font-bold text-gray-900">周辺施設</h2>
+          <p className="text-xs text-gray-500">
+            {loading ? "検索中…" : `半径${formatDistance(radiusM)}・${places.length}件`}
+          </p>
+        </header>
+      </div>
 
       <CategoryFilter counts={counts} active={active} onToggle={onToggleCategory} onReset={onResetCategory} />
 
