@@ -1,19 +1,23 @@
-import type { Metadata } from 'next';
-import './globals.css'; // ← ★ここを有効にしました！
+import type { Metadata, Viewport } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
-  title: 'On-siteNav',
-  description: 'Site Navigation App',
+  title: "On-siteNav",
+  description: "現地で顧客と一緒に見る、周辺施設のファクト・ダッシュボード",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body className="antialiased">{children}</body>
     </html>
   );
 }

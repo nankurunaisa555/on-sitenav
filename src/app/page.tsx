@@ -1,21 +1,22 @@
-'use client';
-
-import dynamic from 'next/dynamic';
-
-// 相対パスで読み込み、ブラウザ側でのみ実行（SSRオフ）するように設定
-const MapView = dynamic(() => import('../components/MapView'), {
-  ssr: false,
-});
+import OnSiteNav from "@/components/OnSiteNav";
 
 export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center p-4 bg-gray-100">
-      <header className="w-full max-w-5xl py-4 mb-2">
-        <h1 className="text-2xl font-bold text-gray-800">On-siteNav</h1>
-      </header>
-      <div className="w-full max-w-5xl h-[80vh] bg-white rounded-lg shadow">
-        <MapView />
-      </div>
-    </main>
-  );
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+
+  if (!apiKey) {
+    return (
+      <main className="flex min-h-dvh items-center justify-center bg-gray-50 p-6">
+        <div className="max-w-md rounded-xl border border-amber-200 bg-amber-50 p-5 text-sm text-amber-900">
+          <p className="mb-2 font-bold">セットアップが必要です</p>
+          <p>
+            環境変数 <code className="rounded bg-white px-1">NEXT_PUBLIC_GOOGLE_MAPS_API_KEY</code>{" "}
+            が設定されていません。<code className="rounded bg-white px-1">.env.example</code>{" "}
+            を参考に設定してください。
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  return <OnSiteNav apiKey={apiKey} />;
 }

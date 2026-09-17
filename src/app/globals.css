@@ -1,9 +1,15 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-html, body {
+html,
+body {
   height: 100%;
-  margin: 0;
-  padding: 0;
+  overscroll-behavior: none;
+  font-family:
+    system-ui,
+    -apple-system,
+    "Hiragino Sans",
+    "Hiragino Kaku Gothic ProN",
+    "Noto Sans JP",
+    Meiryo,
+    sans-serif;
 }
