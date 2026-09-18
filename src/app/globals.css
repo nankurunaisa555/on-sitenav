@@ -13,3 +13,19 @@ body {
     Meiryo,
     sans-serif;
 }
+
+/* 下部シート内のスクロール領域: スマホでもスクロールバーを常時見せる */
+.scroll-visible {
+  scrollbar-width: thin;
+  scrollbar-color: #9ca3af transparent;
+}
+.scroll-visible::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-visible::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-visible::-webkit-scrollbar-thumb {
+  background: #9ca3af;
+  border-radius: 3px;
+}

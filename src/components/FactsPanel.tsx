@@ -56,7 +56,7 @@ export default function FactsPanel({
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[env(safe-area-inset-bottom)]">
+    <div className="scroll-visible min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[env(safe-area-inset-bottom)]">
       {error && <p className="my-3 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       {!facts && loading && <p className="my-8 text-center text-sm text-gray-500">地点情報を取得中…</p>}
       {!facts && !loading && !error && (

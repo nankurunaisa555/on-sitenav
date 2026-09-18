@@ -75,7 +75,7 @@ export default function NimbyPanel({
       )}
 
       {data && (
-        <>
+        <div className="scroll-visible min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]">
           <div className="flex flex-wrap gap-1 px-4 pb-2">
             <button
               type="button"
@@ -119,7 +119,7 @@ export default function NimbyPanel({
               );
             })}
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[env(safe-area-inset-bottom)]">
+          <div className="px-4">
             <p className="my-2 rounded-lg bg-red-50 p-2 text-[11px] leading-snug text-red-800">
               半径1.5kmの候補 {data.items.length} 件。名称・業種からの自動判定のため誤検出や漏れがあります。現地で必ずご確認ください。
               暴力団事務所は公開データに存在しないため対象外です。
@@ -141,7 +141,7 @@ export default function NimbyPanel({
               </div>
             ))}
           </div>
-        </>
+        </div>
       )}
     </div>
   );

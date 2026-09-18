@@ -19,7 +19,7 @@ const REINFOLIB_URL = "https://www.reinfolib.mlit.go.jp/";
 /** 「価格」タブ: 地価公示・地価調査と、町名単位の取引事例 */
 export default function PricePanel({ landPrice, factsLoading, trades, tradesLoading, tradesError, hasSearch }: Props) {
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[env(safe-area-inset-bottom)]">
+    <div className="scroll-visible min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[env(safe-area-inset-bottom)]">
       {!hasSearch && (
         <p className="my-8 text-center text-sm text-gray-500">
           「このエリアを検索」を押すと、地図中心の価格情報を表示します

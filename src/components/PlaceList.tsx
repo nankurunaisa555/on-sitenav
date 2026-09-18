@@ -56,18 +56,20 @@ export default function PlaceList({
 
   return (
     <>
-      <CategoryFilter
-        categories={LIST_CATEGORIES}
-        counts={counts}
-        active={active}
-        onToggle={onToggleCategory}
-        onAll={onAllCategories}
-        onNone={onNoCategories}
-      />
       <div
         ref={listRef}
-        className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[env(safe-area-inset-bottom)]"
+        className="scroll-visible min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[env(safe-area-inset-bottom)]"
       >
+        {/* チップも一緒にスクロールさせる（縮めた状態でも一覧に届くように） */}
+        <CategoryFilter
+          categories={LIST_CATEGORIES}
+          counts={counts}
+          active={active}
+          onToggle={onToggleCategory}
+          onAll={onAllCategories}
+          onNone={onNoCategories}
+        />
+        <div className="px-4">
         {error && <p className="my-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         {!error && !loading && places.length === 0 && (
           <p className="my-8 text-center text-sm text-gray-500">この範囲に施設が見つかりませんでした</p>
@@ -88,6 +90,7 @@ export default function PlaceList({
             </ul>
           </div>
         ))}
+        </div>
       </div>
     </>
   );
