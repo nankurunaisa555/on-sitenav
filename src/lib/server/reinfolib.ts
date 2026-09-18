@@ -67,6 +67,14 @@ function str(v: unknown): string | null {
   return typeof v === "string" && v.trim() !== "" ? v : typeof v === "number" ? String(v) : null;
 }
 
+/** "900.0%" / "80%" / "60.0" → "900" / "80" / "60"（表示側で % を付ける） */
+function ratio(v: unknown): string | null {
+  const raw = str(v);
+  if (!raw) return null;
+  const n = Number(raw.replace("%", "").trim());
+  return Number.isFinite(n) ? String(Math.round(n)) : raw;
+}
+
 /** 用途地域から高さ制限の目安を導く（正確な数値は自治体の都市計画図で確認） */
 function heightNote(useArea: string | null): string | null {
   if (!useArea) return null;
@@ -91,8 +99,8 @@ export async function fetchZoning(center: LatLng): Promise<ZoningSection> {
   return {
     status: "ok",
     useArea,
-    floorAreaRatio: str(use.u_floor_area_ratio_ja),
-    buildingCoverageRatio: str(use.u_building_coverage_ratio_ja),
+    floorAreaRatio: ratio(use.u_floor_area_ratio_ja),
+    buildingCoverageRatio: ratio(use.u_building_coverage_ratio_ja),
     fireZone: str(fire.fire_prevention_ja),
     prefecture: str(use.prefecture),
     city: str(use.city_name),
@@ -136,7 +144,7 @@ function approxDistanceM(a: LatLng, b: LatLng): number {
 
 function pop(props: Record<string, unknown>, year: number): number {
   const n = Number(props[`PTN_${year}`]);
-  return Number.isFinite(n) ? n : 0;
+  return Number.isFinite(n) ? Math.round(n) : 0;
 }
 
 export async function fetchPopulation(center: LatLng): Promise<PopulationSection> {

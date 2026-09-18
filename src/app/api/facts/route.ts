@@ -62,15 +62,16 @@ const emptyPopulation = (status: SectionStatus): PopulationSection => ({ status,
 
 function crimeMapLinks(prefecture: string | null): { label: string; url: string }[] {
   // 都道府県警ごとに Web 地図が分かれており API は無い。代表的なものを直リンク、それ以外は検索へ
-  const direct: Record<string, string> = {
-    東京都: "https://map.digipolice.jp/",
-    神奈川県: "https://www.police.pref.kanagawa.jp/mes/mesf0212.htm",
-    大阪府: "https://www.police.pref.osaka.lg.jp/seikatsu/anzen/1/8296.html",
-    愛知県: "https://www.pref.aichi.jp/police/anzen/anzenmap/",
+  const direct: Record<string, { name: string; url: string }> = {
+    東京都: { name: "警視庁", url: "https://map.digipolice.jp/" },
+    神奈川県: { name: "神奈川県警", url: "https://www.police.pref.kanagawa.jp/mes/mesf0212.htm" },
+    大阪府: { name: "大阪府警", url: "https://www.police.pref.osaka.lg.jp/seikatsu/anzen/1/8296.html" },
+    愛知県: { name: "愛知県警", url: "https://www.pref.aichi.jp/police/anzen/anzenmap/" },
   };
   const links = [];
-  if (prefecture && direct[prefecture]) {
-    links.push({ label: `犯罪発生マップ（${prefecture}警察）`, url: direct[prefecture] });
+  const hit = prefecture ? direct[prefecture] : undefined;
+  if (hit) {
+    links.push({ label: `犯罪発生マップ（${hit.name}）`, url: hit.url });
   } else {
     const q = encodeURIComponent(`${prefecture ?? ""} 警察 犯罪発生マップ`.trim());
     links.push({ label: "犯罪発生マップを検索", url: `https://www.google.com/search?q=${q}` });
