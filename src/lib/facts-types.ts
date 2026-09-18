@@ -172,6 +172,21 @@ export type TradesResponse = {
   years: [number, number];
   totalInTown: number;
   trades: Trade[];
+  /** 市区町村別の家賃統計（e-Stat）。appId 未設定なら status: unavailable */
+  rent: RentStats;
+};
+
+export type RentStats = {
+  status: SectionStatus;
+  /** 調査年（住宅・土地統計調査） */
+  year: number;
+  city: string;
+  /** 住宅の種類別の平均家賃（円/月） */
+  averages: { label: string; yen: number }[];
+  /** 家賃階級別の借家世帯数 */
+  bins: { label: string; lower: number; households: number }[];
+  /** 階級分布から概算した中央値（円/月） */
+  median: number | null;
 };
 
 export type ZoningSection = {

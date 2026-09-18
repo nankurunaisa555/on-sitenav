@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { LandPriceSection, Trade, TradesResponse } from "@/lib/facts-types";
+import type { LandPriceSection, RentStats, Trade, TradesResponse } from "@/lib/facts-types";
 import { formatDistance } from "@/lib/geo";
 
 type Props = {
@@ -29,6 +29,7 @@ export default function PricePanel({ landPrice, factsLoading, trades, tradesLoad
         <div className="space-y-4 pb-4">
           <LandPriceCard section={landPrice} loading={factsLoading} />
           <TradesCard trades={trades} loading={tradesLoading} error={tradesError} />
+          {trades && <RentCard rent={trades.rent} />}
           <p className="text-[11px] leading-snug text-gray-400">
             出典: 国土交通省「
             <a href={REINFOLIB_URL} target="_blank" rel="noopener noreferrer" className="underline">
@@ -187,6 +188,72 @@ function TradesCard({ trades, loading, error }: { trades: TradesResponse | null;
         <p className="mt-2 text-[11px] leading-snug text-gray-400">
           「成約価格情報」は不動産流通機構の成約データ、「不動産取引価格情報」は登記情報をもとにしたアンケート。町名単位で位置は公開されていません。
         </p>
+      )}
+    </section>
+  );
+}
+
+const ESTAT_URL = "https://www.e-stat.go.jp/";
+
+/** 家賃相場（住宅・土地統計調査、市区町村別） */
+function RentCard({ rent }: { rent: RentStats }) {
+  const total = rent.bins.reduce((a, b) => a + b.households, 0);
+  const maxShare = Math.max(0, ...rent.bins.map((b) => (total ? b.households / total : 0)));
+  return (
+    <section className="rounded-xl border border-gray-100 p-3">
+      <header className="mb-1 flex items-baseline justify-between gap-2">
+        <h3 className="text-sm font-bold text-gray-900">家賃相場（統計）：{rent.city}</h3>
+        <span className="shrink-0 text-[11px] text-gray-500">住宅・土地統計調査 {rent.year}年</span>
+      </header>
+      {rent.status === "unavailable" && (
+        <p className="rounded-lg bg-amber-50 p-2 text-xs leading-relaxed text-amber-800">
+          e-Stat の appId（環境変数 <code className="rounded bg-white px-1">ESTAT_APP_ID</code>）が未設定のため表示できません。
+        </p>
+      )}
+      {rent.status === "error" && <p className="rounded-lg bg-red-50 p-2 text-xs text-red-700">e-Stat に接続できませんでした</p>}
+      {rent.status === "ok" && (
+        <>
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            {rent.median !== null && (
+              <span>
+                <span className="text-xs text-gray-500">中央値（概算） </span>
+                <span className="text-base font-semibold tabular-nums text-gray-900">{yen(rent.median)}円/月</span>
+              </span>
+            )}
+            {rent.averages.map((a) => (
+              <span key={a.label}>
+                <span className="text-xs text-gray-500">{a.label} </span>
+                <span className="text-sm font-semibold tabular-nums text-gray-900">{yen(a.yen)}円/月</span>
+              </span>
+            ))}
+          </div>
+          {rent.bins.length > 0 && (
+            <ul className="mt-2 space-y-0.5">
+              {rent.bins.map((b) => {
+                const share = total ? b.households / total : 0;
+                return (
+                  <li key={b.label} className="flex items-center gap-2 text-xs">
+                    <span className="w-28 shrink-0 truncate text-gray-600">{b.label}</span>
+                    <span className="h-2.5 flex-1 overflow-hidden rounded-sm bg-gray-100">
+                      <span
+                        className="block h-full rounded-sm bg-sky-500"
+                        style={{ width: `${maxShare ? (share / maxShare) * 100 : 0}%` }}
+                      />
+                    </span>
+                    <span className="w-10 shrink-0 text-right tabular-nums text-gray-700">{(share * 100).toFixed(0)}%</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <p className="mt-2 text-[11px] leading-snug text-gray-400">
+            借家に住む世帯の家賃分布（市区町村全体・住宅の広さや築年を問わない統計値）。出典:{" "}
+            <a href={ESTAT_URL} target="_blank" rel="noopener noreferrer" className="underline">
+              e-Stat
+            </a>
+            「令和5年住宅・土地統計調査」
+          </p>
+        </>
       )}
     </section>
   );

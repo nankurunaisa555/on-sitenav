@@ -25,7 +25,8 @@ npm run dev
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | ブラウザ側の地図表示 | 公開されるキー。**HTTP リファラー制限**（`on-sitenav.vercel.app/*`, `localhost:3001`）を推奨 |
 | `GOOGLE_MAPS_API_KEY` | サーバー側の Places 検索 | 非公開。**API 制限で Places API (New) のみ**を推奨 |
 | `NEXT_PUBLIC_GOOGLE_MAP_ID` | 任意。Cloud Console の Map ID | 未設定時は `DEMO_MAP_ID` |
-| `REINFOLIB_API_KEY` | 任意。国交省「不動産情報ライブラリ」API | 用途地域・学区・人口に必要。[利用申請](https://www.reinfolib.mlit.go.jp/api/request/)（無料） |
+| `REINFOLIB_API_KEY` | 任意。国交省「不動産情報ライブラリ」API | 用途地域・学区・人口・価格に必要。[利用申請](https://www.reinfolib.mlit.go.jp/api/request/)（無料） |
+| `ESTAT_APP_ID` | 任意。e-Stat API のアプリケーションID | 家賃相場（統計）に必要。[登録](https://www.e-stat.go.jp/api/)（無料・即時） |
 
 同じキーを両方に使っても動きますが、本番では用途別に2つに分けるのが安全です。
 
@@ -50,6 +51,8 @@ npm run dev
 | 液状化傾向（地形区分に基づく液状化発生傾向図） | 不動産情報ライブラリ XKT025 | REINFOLIB |
 | 指定緊急避難場所（近い順・対応災害・ルート） | 不動産情報ライブラリ XGT001（国土地理院データ） | REINFOLIB |
 | 標高 | 国土地理院 標高API | 不要 |
+| 地価公示地点の相続税路線価・高度地区の高さ・利回り・前面道路 | 不動産情報ライブラリ XCT001（鑑定評価書） | REINFOLIB |
+| 家賃相場（市区町村別の平均・中央値・階級分布、一戸建/共同住宅別） | e-Stat 令和5年住宅・土地統計調査（112-3-2, 123-3-1） | ESTAT |
 | 基準点から最寄り駅・学区の小中学校への徒歩ルート（道なり距離・時間） | Google Routes API（学校位置は不動産情報ライブラリ XKT006） | Google |
 | 駅・バス停の時刻表・始発終電 | 公開 API が無いため Google マップへリンク | — |
 | 犯罪発生（窃盗7手口・町丁目別の年間件数）レイヤーと周辺500m集計 | 県警「犯罪オープンデータ」CSV ＋ 国交省「位置参照情報」を事前集計（現在は埼玉県） | 不要 |

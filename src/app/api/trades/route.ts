@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { parseJapaneseAddress } from "@/lib/address";
-import type { Trade, TradesResponse } from "@/lib/facts-types";
+import type { RentStats, Trade, TradesResponse } from "@/lib/facts-types";
+import { fetchRentStats, hasEstatKey } from "@/lib/server/estat";
 
 export const runtime = "nodejs";
 
@@ -80,14 +81,30 @@ export async function GET(request: Request) {
 
     const thisYear = new Date().getFullYear();
     const years = Array.from({ length: YEARS_BACK + 1 }, (_, i) => thisYear - i);
-    const results = await Promise.all(
-      years.map((y) =>
-        reinfo<{ data?: RawTrade[] }>(
-          `XIT001?year=${y}&area=${parsed.prefCode}&city=${cityEntry.id}`,
-          60 * 60 * 24,
-        ).catch(() => null),
+    const unavailableRent: RentStats = {
+      status: "unavailable",
+      year: 2023,
+      city: parsed.city,
+      averages: [],
+      bins: [],
+      median: null,
+    };
+    const [results, rent] = await Promise.all([
+      Promise.all(
+        years.map((y) =>
+          reinfo<{ data?: RawTrade[] }>(
+            `XIT001?year=${y}&area=${parsed.prefCode}&city=${cityEntry.id}`,
+            60 * 60 * 24,
+          ).catch(() => null),
+        ),
       ),
-    );
+      hasEstatKey()
+        ? fetchRentStats(cityEntry.id, parsed.city).catch((err) => {
+            console.error("[api/trades] e-Stat", err);
+            return { ...unavailableRent, status: "error" as const };
+          })
+        : Promise.resolve(unavailableRent),
+    ]);
 
     const all = results.flatMap((r) => r?.data ?? []);
     const inTown = all.filter((r) => (r.DistrictName ?? "") === parsed.town);
@@ -102,6 +119,7 @@ export async function GET(request: Request) {
       years: [years[years.length - 1]!, years[0]!],
       totalInTown: inTown.length,
       trades,
+      rent,
     };
     return NextResponse.json(data);
   } catch (err) {
