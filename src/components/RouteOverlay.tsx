@@ -4,11 +4,9 @@ import { useEffect, useRef } from "react";
 import { AdvancedMarker, useMap } from "@vis.gl/react-google-maps";
 import type { RouteState, RouteTarget } from "@/hooks/useRoutes";
 
-const TARGET_EMOJI: Record<RouteTarget, string> = {
-  station: "🚉",
-  elementary: "🏫",
-  juniorHigh: "🏫",
-};
+function targetEmoji(target: RouteTarget): string {
+  return target.startsWith("station") ? "🚉" : "🏫";
+}
 
 /** 徒歩ルートの折れ線と目的地マーカーを地図に描く */
 export default function RouteOverlay({ routes }: { routes: ReadonlyMap<RouteTarget, RouteState> }) {
@@ -88,7 +86,7 @@ export default function RouteOverlay({ routes }: { routes: ReadonlyMap<RouteTarg
               className="flex items-center gap-1 rounded-full border-2 border-white px-2.5 py-1 text-sm font-bold text-white shadow-lg"
               style={{ backgroundColor: route.color }}
             >
-              <span>{TARGET_EMOJI[route.target]}</span>
+              <span>{targetEmoji(route.target)}</span>
               <span className="max-w-[10rem] truncate">{route.label}</span>
             </div>
             <div

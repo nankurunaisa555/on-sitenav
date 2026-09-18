@@ -53,13 +53,19 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const [showPins, setShowPins] = useState(true);
 
   const allPlaces = places.data?.places ?? [];
-  const visiblePlaces = useMemo(
-    () =>
+  const nearestStations = places.data?.nearestStations ?? [];
+  const visiblePlaces = useMemo(() => {
+    const filtered =
       activeCategories.size === 0
         ? allPlaces
-        : allPlaces.filter((p) => activeCategories.has(p.category)),
-    [allPlaces, activeCategories],
-  );
+        : allPlaces.filter((p) => activeCategories.has(p.category));
+    // 半径外の最寄り駅も地図には出す（一覧には出さない）
+    if (activeCategories.size === 0 || activeCategories.has("station")) {
+      const ids = new Set(filtered.map((p) => p.id));
+      return [...filtered, ...nearestStations.filter((s) => !ids.has(s.id))];
+    }
+    return filtered;
+  }, [allPlaces, nearestStations, activeCategories]);
 
   const runSearch = useCallback(
     (center: LatLng) => {
@@ -274,6 +280,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                 loading={facts.loading}
                 error={facts.error}
                 places={allPlaces}
+                nearestStations={nearestStations}
                 enabledHazards={hazardLayers}
                 onToggleHazard={toggleHazard}
                 origin={searchCenter}

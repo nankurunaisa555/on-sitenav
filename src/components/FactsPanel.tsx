@@ -18,6 +18,8 @@ type Props = {
   loading: boolean;
   error: string | null;
   places: Place[];
+  /** 半径に関係なく見つけた最寄り駅（近い順） */
+  nearestStations: Place[];
   enabledHazards: ReadonlySet<HazardKey>;
   onToggleHazard: (key: HazardKey) => void;
   /** ルートの出発点（基準点） */
@@ -32,13 +34,13 @@ export default function FactsPanel({
   loading,
   error,
   places,
+  nearestStations,
   enabledHazards,
   onToggleHazard,
   origin,
   routes,
   onToggleRoute,
 }: Props) {
-  const nearestStation = places.find((p) => p.category === "station") ?? null;
   const nearestBus = places.find((p) => p.category === "bus") ?? null;
 
   return (
@@ -224,23 +226,26 @@ export default function FactsPanel({
 
           {/* 交通 */}
           <Section title="交通" status="ok">
-            <Row label="最寄り駅">
-              {nearestStation ? (
-                <TransitValue place={nearestStation} />
-              ) : (
-                <span className="text-sm text-gray-400">半径内に見つかりません</span>
-              )}
-            </Row>
-            {nearestStation && (
-              <RouteButton
-                target="station"
-                label={nearestStation.name}
-                destination={nearestStation.location}
-                origin={origin}
-                routes={routes}
-                onToggleRoute={onToggleRoute}
-              />
+            {nearestStations.length === 0 && (
+              <Row label="最寄り駅">
+                <span className="text-sm text-gray-400">5km 以内に駅が見つかりません</span>
+              </Row>
             )}
+            {nearestStations.map((st, i) => (
+              <div key={st.id} className={i > 0 ? "mt-1 border-t border-gray-100 pt-1" : ""}>
+                <Row label={`最寄り駅 ${i + 1}`}>
+                  <TransitValue place={st} />
+                </Row>
+                <RouteButton
+                  target={`station-${i}`}
+                  label={st.name}
+                  destination={st.location}
+                  origin={origin}
+                  routes={routes}
+                  onToggleRoute={onToggleRoute}
+                />
+              </div>
+            ))}
             <Row label="最寄りバス停">
               {nearestBus ? (
                 <TransitValue place={nearestBus} />

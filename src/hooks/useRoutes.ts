@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import type { RouteResponse } from "@/lib/facts-types";
 import type { LatLng } from "@/lib/types";
 
-export type RouteTarget = "station" | "elementary" | "juniorHigh";
+export type RouteTarget = `station-${number}` | "elementary" | "juniorHigh";
 
 export type RouteState = {
   target: RouteTarget;
@@ -18,11 +18,14 @@ export type RouteState = {
   error?: string;
 };
 
-export const ROUTE_COLORS: Record<RouteTarget, string> = {
-  station: "#2563eb",
-  elementary: "#7c3aed",
-  juniorHigh: "#a855f7",
-};
+const STATION_COLORS = ["#2563eb", "#0891b2"];
+
+export function routeColor(target: RouteTarget): string {
+  if (target === "elementary") return "#7c3aed";
+  if (target === "juniorHigh") return "#a855f7";
+  const i = Number(target.split("-")[1] ?? 0);
+  return STATION_COLORS[i % STATION_COLORS.length] ?? "#2563eb";
+}
 
 /** 基準点から各目的地への徒歩ルート（最大3本）を ON/OFF で管理する */
 export function useRoutes() {
@@ -45,7 +48,7 @@ export function useRoutes() {
         existed = prev.has(target);
         const next = new Map(prev);
         if (existed) next.delete(target);
-        else next.set(target, { target, label, destination: to, color: ROUTE_COLORS[target], status: "loading" });
+        else next.set(target, { target, label, destination: to, color: routeColor(target), status: "loading" });
         return next;
       });
       if (existed) return;

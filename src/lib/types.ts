@@ -32,6 +32,8 @@ export type PlacesResponse = {
   center: LatLng;
   radiusM: number;
   places: Place[];
+  /** 半径に関係なく、距離順に見つけた最寄り駅（重複路線・出入口は除外） */
+  nearestStations: Place[];
 };
 
 export type PlacesErrorResponse = {

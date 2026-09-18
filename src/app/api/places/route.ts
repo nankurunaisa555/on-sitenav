@@ -10,6 +10,11 @@ const DEFAULT_RADIUS_M = 800;
 const MIN_RADIUS_M = 200;
 const MAX_RADIUS_M = 2000;
 const CACHE_TTL_MS = 10 * 60 * 1000;
+/** 最寄り駅は半径に縛られず、この範囲から距離順に探す */
+const STATION_SEARCH_RADIUS_M = 5000;
+const STATION_COUNT = 2;
+/** これより近い駅同士は同一駅（別路線・別出入口）とみなす */
+const SAME_STATION_M = 250;
 
 /**
  * 1リクエストあたり最大20件しか返らないため、カテゴリをグループ分けして並列に問い合わせる。
@@ -58,7 +63,7 @@ async function searchGroup(
   apiKey: string,
   center: LatLng,
   radiusM: number,
-  group: (typeof REQUEST_GROUPS)[number],
+  group: { keys: readonly CategoryKey[]; max: number },
 ): Promise<GooglePlace[]> {
   const includedTypes = group.keys.flatMap(
     (key) => CATEGORIES.find((c) => c.key === key)?.googleTypes ?? [],
@@ -98,6 +103,28 @@ async function searchGroup(
 /** "日本、〒100-0005 東京都千代田区…" → "東京都千代田区…" */
 function tidyAddress(address: string): string {
   return address.replace(/^日本[、,]\s*/, "").replace(/^〒?\d{3}-?\d{4}\s*/, "").trim();
+}
+
+/** 「東京駅（丸ノ内線）」「東京駅 八重洲口」→「東京」のように、駅名の本体だけを比べる */
+function stationKey(name: string): string {
+  return name
+    .replace(/[（(].*?[）)]/g, "")
+    .replace(/\s.*$/, "")
+    .replace(/駅$/, "")
+    .trim();
+}
+
+/** 距離順の駅候補から、同一駅とみなせるものを除いて上位 n 件を選ぶ */
+function pickDistinctStations(candidates: Place[], n: number): Place[] {
+  const picked: Place[] = [];
+  for (const c of candidates) {
+    const dup = picked.some(
+      (p) => stationKey(p.name) === stationKey(c.name) || distanceMeters(p.location, c.location) < SAME_STATION_M,
+    );
+    if (!dup) picked.push(c);
+    if (picked.length >= n) break;
+  }
+  return picked;
 }
 
 function toPlace(raw: GooglePlace, center: LatLng): Place | null {
@@ -144,9 +171,10 @@ export async function GET(request: Request) {
   }
 
   try {
-    const groups = await Promise.all(
-      REQUEST_GROUPS.map((g) => searchGroup(apiKey, center, radiusM, g)),
-    );
+    const [groups, stationRaw] = await Promise.all([
+      Promise.all(REQUEST_GROUPS.map((g) => searchGroup(apiKey, center, radiusM, g))),
+      searchGroup(apiKey, center, STATION_SEARCH_RADIUS_M, { keys: ["station"], max: 10 }),
+    ]);
 
     const seen = new Set<string>();
     const places: Place[] = [];
@@ -158,7 +186,13 @@ export async function GET(request: Request) {
     }
     places.sort((a, b) => a.distanceM - b.distanceM);
 
-    const data: PlacesResponse = { center, radiusM, places };
+    const stationCandidates = stationRaw
+      .map((raw) => toPlace(raw, center))
+      .filter((p): p is Place => p !== null && p.category === "station")
+      .sort((a, b) => a.distanceM - b.distanceM);
+    const nearestStations = pickDistinctStations(stationCandidates, STATION_COUNT);
+
+    const data: PlacesResponse = { center, radiusM, places, nearestStations };
     cache.set(key, { expires: Date.now() + CACHE_TTL_MS, data });
     return NextResponse.json(data, { headers: { "X-Cache": "MISS" } });
   } catch (err) {
