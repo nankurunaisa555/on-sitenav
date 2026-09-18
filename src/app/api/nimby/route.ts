@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { distanceMeters } from "@/lib/geo";
 import { classifyNimby, NIMBY_GLOBAL_EXCLUDE, NIMBY_KIND_MAP, NIMBY_NEARBY_TYPES, NIMBY_TEXT_QUERIES } from "@/lib/nimby";
 import type { LatLng, NimbyPlace, NimbyResponse } from "@/lib/types";
+import { fetchOsmNimby } from "@/lib/server/overpass";
 
 export const runtime = "nodejs";
 
@@ -87,7 +88,12 @@ export async function GET(request: Request) {
   if (hit && hit.expires > Date.now()) return NextResponse.json(hit.data, { headers: { "X-Cache": "HIT" } });
 
   try {
-    const [near, ...texts] = await Promise.all([
+    const [osm, near, ...texts] = await Promise.all([
+      // OSM は寺社・墓地・変電所などの網羅性が高い。失敗しても Google だけで続ける
+      fetchOsmNimby(center, SEARCH_RADIUS_M).catch((err) => {
+        console.error("[api/nimby] overpass", err);
+        return [] as NimbyPlace[];
+      }),
       nearby(apiKey, center).catch(() => [] as GooglePlace[]),
       ...NIMBY_TEXT_QUERIES.map((q) => textSearch(apiKey, center, q.query)),
     ]);
@@ -112,6 +118,8 @@ export async function GET(request: Request) {
       const location = { lat: plat, lng: plng };
       const distanceM = distanceMeters(center, location);
       if (distanceM > MAX_DISTANCE_M) continue;
+      // 同じ施設が別名で二重登録されていることがある（㈱表記違いなど）。同種で近接なら1件に
+      if (items.some((g) => g.sub.key === kind!.key && distanceMeters(g.location, location) < 40)) continue;
       seen.add(raw.id);
       items.push({
         id: raw.id,
@@ -122,6 +130,15 @@ export async function GET(request: Request) {
         distanceM,
         sub: { key: kind.key, label: kind.label, emoji: kind.emoji },
       });
+    }
+    // OSM 由来を合流。Google 側に近接する同種の地物があれば重複とみなして落とす
+    const SAME_M = 60;
+    for (const o of osm) {
+      if (o.distanceM > MAX_DISTANCE_M) continue;
+      const dup = items.some(
+        (g) => (g.sub.key === o.sub.key && distanceMeters(g.location, o.location) < SAME_M) || distanceMeters(g.location, o.location) < 15,
+      );
+      if (!dup) items.push(o);
     }
     items.sort((a, b) => a.distanceM - b.distanceM);
 
