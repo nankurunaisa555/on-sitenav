@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type {
   FactsResponse,
   HazardSection,
+  LandformSection,
   PopulationSection,
   QuakeSection,
   SchoolSection,
@@ -11,6 +12,7 @@ import type {
 import { disaportalUrl } from "@/lib/hazard-layers";
 import { sampleHazards } from "@/lib/server/hazard";
 import { fetchQuake, jshisUrl } from "@/lib/server/jshis";
+import { fetchLandform, gsiMapUrl } from "@/lib/server/landform";
 import { fetchPopulation, fetchSchools, fetchZoning, hasReinfolibKey } from "@/lib/server/reinfolib";
 import type { LatLng } from "@/lib/types";
 
@@ -46,6 +48,12 @@ const emptyQuake = (center: LatLng, status: SectionStatus): QuakeSection => ({
   arv: null,
   landform: null,
   sourceUrl: jshisUrl(center),
+});
+const emptyLandform = (center: LatLng, status: SectionStatus): LandformSection => ({
+  status,
+  natural: null,
+  artificial: null,
+  sourceUrl: gsiMapUrl(center),
 });
 const emptyZoning = (status: SectionStatus): ZoningSection => ({
   status,
@@ -96,13 +104,14 @@ export async function GET(request: Request) {
 
   const reinfo = hasReinfolibKey();
 
-  const [hazard, quake, zoning, school, population] = await Promise.all([
+  const [hazard, quake, landform, zoning, school, population] = await Promise.all([
     section<HazardSection>(
       "hazard",
       async () => ({ status: "ok", items: await sampleHazards(center), sourceUrl: disaportalUrl(lat, lng) }),
       (status) => ({ status, items: [], sourceUrl: disaportalUrl(lat, lng) }),
     ),
     section("quake", () => fetchQuake(center), (s) => emptyQuake(center, s)),
+    section("landform", () => fetchLandform(center), (s) => emptyLandform(center, s)),
     reinfo ? section("zoning", () => fetchZoning(center), emptyZoning) : emptyZoning("unavailable"),
     reinfo ? section("school", () => fetchSchools(center), emptySchool) : emptySchool("unavailable"),
     reinfo ? section("population", () => fetchPopulation(center), emptyPopulation) : emptyPopulation("unavailable"),
@@ -111,6 +120,7 @@ export async function GET(request: Request) {
   const data: FactsResponse = {
     hazard,
     quake,
+    landform,
     zoning,
     school,
     population,

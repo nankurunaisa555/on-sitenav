@@ -33,6 +33,28 @@ export type QuakeSection = {
   sourceUrl: string;
 };
 
+export type LandformInfo = {
+  code: string;
+  /** 地形分類名（例: 氾濫平野・海岸平野, 盛土地･埋立地） */
+  name: string;
+  /** 土地の成り立ち */
+  origin: string;
+  /** その地形に伴う自然災害リスクの説明 */
+  risk: string;
+  /** 国土地理院の凡例色 */
+  color: string | null;
+};
+
+export type LandformSection = {
+  status: SectionStatus;
+  /** 自然地形（台地・段丘、氾濫平野 など） */
+  natural: LandformInfo | null;
+  /** 人工地形（盛土地・切土地 など）。改変が無ければ null */
+  artificial: LandformInfo | null;
+  /** 地理院地図（地形分類レイヤー表示） */
+  sourceUrl: string;
+};
+
 export type ZoningSection = {
   status: SectionStatus;
   useArea: string | null;
@@ -62,6 +84,7 @@ export type PopulationSection = {
 export type FactsResponse = {
   hazard: HazardSection;
   quake: QuakeSection;
+  landform: LandformSection;
   zoning: ZoningSection;
   school: SchoolSection;
   population: PopulationSection;

@@ -85,7 +85,7 @@ export default function BottomSheet<K extends string>({
           <span className="h-1.5 w-10 rounded-full bg-gray-300" />
         </div>
         <header className="flex items-center justify-between gap-3 px-4 pb-2">
-          <div role="tablist" className="flex gap-1 rounded-lg bg-gray-100 p-0.5">
+          <div role="tablist" className="flex shrink-0 gap-1 rounded-lg bg-gray-100 p-0.5">
             {tabs.map((t) => (
               <button
                 key={t.key}
@@ -97,7 +97,7 @@ export default function BottomSheet<K extends string>({
                   onTabChange(t.key);
                   if (!expanded) setExpanded(true);
                 }}
-                className={`rounded-md px-3 py-1 text-sm font-semibold transition ${
+                className={`whitespace-nowrap rounded-md px-3 py-1 text-sm font-semibold transition ${
                   t.key === activeTab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                 }`}
               >
@@ -105,7 +105,7 @@ export default function BottomSheet<K extends string>({
               </button>
             ))}
           </div>
-          {meta && <p className="shrink-0 text-xs text-gray-500">{meta}</p>}
+          {meta && <p className="min-w-0 truncate text-xs text-gray-500">{meta}</p>}
         </header>
       </div>
       {children}

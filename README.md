@@ -41,6 +41,7 @@ npm run dev
 | 周辺施設（駅・バス停・スーパー・病院・学校…）と距離・徒歩分数 | Google Places API (New) | Google |
 | 洪水・内水・高潮・津波・土砂災害の該当判定と地図重ね表示 | 国土地理院「重ねるハザードマップ」タイル | 不要 |
 | 地震の揺れやすさ（30年確率・表層地盤増幅率・微地形） | 防災科研 J-SHIS API | 不要 |
+| 地形分類（自然地形・人工地形）と土地の成り立ち・リスク | 国土地理院 地形分類ベクトルタイル（`landform-codes.json` は同 style.js から抽出） | 不要 |
 | 用途地域・建蔽率・容積率・防火地域・高さ制限の目安 | 不動産情報ライブラリ XKT002 / XKT014 | REINFOLIB |
 | 小学校区・中学校区 | 不動産情報ライブラリ XKT004 / XKT005 | REINFOLIB |
 | 人口（2020/2030/2050 推計・増減率） | 不動産情報ライブラリ XKT013（250mメッシュ） | REINFOLIB |
@@ -76,7 +77,8 @@ src/
     ├── hazard-layers.ts      # ハザードレイヤー定義（タイル URL・色）
     ├── geo.ts / tile.ts      # 距離計算・タイル座標計算
     ├── types.ts / facts-types.ts
-    └── server/               # サーバー専用: hazard.ts（タイル色判定）, jshis.ts, reinfolib.ts
+    ├── landform-codes.json   # 地形分類コード → 名称・成り立ち・リスク（国土地理院 style.js 由来）
+    └── server/               # サーバー専用: hazard.ts（タイル色判定）, jshis.ts, landform.ts, reinfolib.ts
 ```
 
 ## 動作の流れ

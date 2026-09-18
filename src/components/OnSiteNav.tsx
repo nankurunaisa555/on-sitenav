@@ -27,8 +27,8 @@ const TABS: readonly SheetTab<TabKey>[] = [
 
 /** 基準点が現在地か、タップ地点/地図中心かをヘッダーに示す */
 function basisLabel(center: LatLng, user: (LatLng & { accuracyM: number }) | null): string {
-  if (user && distanceMeters(center, user) < 5) return `基準: 現在地（±${Math.round(user.accuracyM)}m）`;
-  return `基準: 指定地点 ${center.lat.toFixed(4)}, ${center.lng.toFixed(4)}`;
+  if (user && distanceMeters(center, user) < 5) return `基準: 現在地 ±${Math.round(user.accuracyM)}m`;
+  return "基準: 指定地点";
 }
 
 export default function OnSiteNav({ apiKey }: { apiKey: string }) {

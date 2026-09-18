@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { FactsResponse, HazardKey, SectionStatus } from "@/lib/facts-types";
+import type { FactsResponse, HazardKey, LandformInfo, SectionStatus } from "@/lib/facts-types";
 import { HAZARD_LAYER_MAP } from "@/lib/hazard-layers";
 import { formatDistance, walkMinutes } from "@/lib/geo";
 import type { Place } from "@/lib/types";
@@ -96,6 +96,28 @@ export default function FactsPanel({
               )}
             </Row>
             <Row label="微地形区分">{facts.quake.landform ?? <Na />}</Row>
+          </Section>
+
+          {/* 地形分類 */}
+          <Section
+            title="地形分類・土地の成り立ち"
+            status={facts.landform.status}
+            source={facts.landform.sourceUrl}
+            sourceLabel="地理院地図"
+          >
+            {facts.landform.natural ? (
+              <LandformCard label="自然地形" info={facts.landform.natural} />
+            ) : (
+              <Row label="自然地形">
+                <Na />
+              </Row>
+            )}
+            {facts.landform.artificial && (
+              <LandformCard label="人工地形（改変）" info={facts.landform.artificial} />
+            )}
+            <p className="mt-1 text-[11px] leading-snug text-gray-400">
+              出典: 国土地理院「地形分類（自然地形・人工地形）」ベクトルタイル提供実験
+            </p>
           </Section>
 
           {/* 都市計画 */}
@@ -293,6 +315,37 @@ function PopulationRows({
       {rate !== null && (
         <p className="mt-1 text-right text-xs text-gray-600">
           2020→2030 増減率 <span className={`font-semibold ${rate < 0 ? "text-red-600" : "text-emerald-700"}`}>{rate > 0 ? "+" : ""}{rate.toFixed(1)}%</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function LandformCard({ label, info }: { label: string; info: LandformInfo }) {
+  return (
+    <div className="py-1.5">
+      <div className="mb-1 flex items-center gap-2">
+        <span className="text-xs font-semibold text-gray-500">{label}</span>
+        <span
+          className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-2 py-0.5 text-sm font-semibold text-gray-900"
+        >
+          <span
+            className="h-3 w-3 rounded-sm border border-black/10"
+            style={{ backgroundColor: info.color ?? "#e5e7eb" }}
+          />
+          {info.name}
+        </span>
+      </div>
+      {info.origin && (
+        <p className="text-xs leading-relaxed text-gray-700">
+          <span className="font-semibold text-gray-500">成り立ち: </span>
+          {info.origin}
+        </p>
+      )}
+      {info.risk && (
+        <p className="mt-1 text-xs leading-relaxed text-gray-700">
+          <span className="font-semibold text-gray-500">リスク: </span>
+          {info.risk}
         </p>
       )}
     </div>
