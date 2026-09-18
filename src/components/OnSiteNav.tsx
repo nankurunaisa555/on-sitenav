@@ -10,6 +10,7 @@ import LayerMenu from "./LayerMenu";
 import MapView from "./MapView";
 import PlaceList from "./PlaceList";
 import RouteOverlay from "./RouteOverlay";
+import ZoomButtons from "./ZoomButtons";
 import { useFacts } from "@/hooks/useFacts";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePlaces } from "@/hooks/usePlaces";
@@ -64,6 +65,8 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   /** 周辺施設ピンの一括表示/非表示。ルート表示時は自動で隠す */
   const [showPins, setShowPins] = useState(true);
   const [showCrime, setShowCrime] = useState(false);
+  /** 下のリスト（ボトムシート）の表示/非表示。地図を広く見たいときに隠す */
+  const [showSheet, setShowSheet] = useState(true);
 
   const crimePref = useMemo(() => {
     const code = guessPrefCode(searchCenter ?? mapCenter ?? initialCenter ?? DEFAULT_CENTER);
@@ -255,8 +258,11 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           )}
         </div>
 
-        {/* 下部: レイヤー切替 + 現在地ボタン + ボトムシート */}
+        {/* 下部: 拡大縮小 / ピン・レイヤー・リスト・現在地 / ボトムシート */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col">
+          <div className="mr-3 mb-2 flex justify-end">
+            <ZoomButtons />
+          </div>
           <div className="mr-3 mb-3 flex items-end justify-end gap-2">
             <button
               type="button"
@@ -268,7 +274,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               }`}
             >
               <span aria-hidden>{showPins ? "📍" : "🚫"}</span>
-              {showPins ? "ピン" : "ピン非表示"}
+              ピン
             </button>
             <LayerMenu
               enabled={hazardLayers}
@@ -280,6 +286,17 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
             />
             <button
               type="button"
+              onClick={() => setShowSheet((v) => !v)}
+              aria-pressed={!showSheet}
+              aria-label={showSheet ? "リストを隠す" : "リストを表示"}
+              className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full text-lg shadow-lg active:scale-95 ${
+                showSheet ? "bg-white text-gray-800" : "bg-gray-900 text-white"
+              }`}
+            >
+              <span aria-hidden>{showSheet ? "▤" : "▢"}</span>
+            </button>
+            <button
+              type="button"
               onClick={handleLocate}
               disabled={geo.status === "locating"}
               aria-label="現在地へ移動"
@@ -288,6 +305,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               {geo.status === "locating" ? "…" : "◎"}
             </button>
           </div>
+          {showSheet && (
           <BottomSheet
             tabs={TABS}
             activeTab={tab}
@@ -333,6 +351,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               />
             )}
           </BottomSheet>
+          )}
         </div>
       </div>
     </APIProvider>
