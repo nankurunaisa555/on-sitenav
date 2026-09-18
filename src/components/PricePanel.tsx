@@ -97,11 +97,36 @@ function LandPriceCard({ section, loading }: { section: LandPriceSection | null;
                   .filter(Boolean)
                   .join("・")}
               </p>
+              {p.appraisal && <AppraisalRows a={p.appraisal} />}
             </li>
           ))}
         </ul>
       )}
     </section>
+  );
+}
+
+/** 鑑定評価書由来の補足（路線価・高さ制限・利回りなど） */
+function AppraisalRows({ a }: { a: import("@/lib/facts-types").Appraisal }) {
+  const items: { k: string; v: string }[] = [];
+  if (a.routePrice) items.push({ k: `相続税路線価${a.routePriceYear ? `(${a.routePriceYear})` : ""}`, v: `${yen(a.routePrice)}円/㎡` });
+  if (a.heightLimit) items.push({ k: "高度地区", v: a.heightLimit });
+  if (a.baseCoverageRatio && a.baseFloorAreaRatio)
+    items.push({ k: "基準建蔽/容積", v: `${a.baseCoverageRatio}% / ${a.baseFloorAreaRatio}%` });
+  if (a.comparablePrice) items.push({ k: "比準価格", v: `${yen(a.comparablePrice)}円/㎡` });
+  if (a.incomePrice) items.push({ k: "収益価格", v: `${yen(a.incomePrice)}円/㎡` });
+  if (a.capRate) items.push({ k: "還元利回り", v: `${a.capRate}%` });
+  if (a.frontRoad) items.push({ k: "前面道路", v: a.frontRoad });
+  if (items.length === 0) return null;
+  return (
+    <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 rounded-lg bg-gray-50 px-2 py-1.5 text-xs">
+      {items.map((it) => (
+        <div key={it.k} className="contents">
+          <dt className="text-gray-500">{it.k}</dt>
+          <dd className="text-right font-medium tabular-nums text-gray-800">{it.v}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 

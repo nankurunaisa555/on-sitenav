@@ -1,4 +1,5 @@
 import type { LandPriceSection, LiquefactionSection, ShelterSection } from "@/lib/facts-types";
+import { attachAppraisals } from "./appraisal";
 import { distanceMeters } from "@/lib/geo";
 import { lngLatToTile } from "@/lib/tile";
 import type { LatLng } from "@/lib/types";
@@ -111,8 +112,8 @@ export async function fetchLandPrices(center: LatLng): Promise<LandPriceSection>
         nearestStation: str(p.nearest_station_name_ja),
         stationDistance: str(p.u_road_distance_to_nearest_station_name_ja),
         surroundings: str(p.current_usage_status_of_surrounding_land_name_ja),
-        /** 1=地価公示（国）, 2=地価調査（県）と思われる */
-        kind: (Number(p.land_price_type) === 2 ? "地価調査" : "地価公示") as "地価公示" | "地価調査",
+        // 価格時点が 1月1日 なら地価公示（国）、7月1日 なら都道府県地価調査
+        kind: (/7月1日/.test(str(p.target_year_name_ja) ?? "") ? "地価調査" : "地価公示") as "地価公示" | "地価調査",
         cityCode: str(p.city_code),
       };
     })
@@ -128,7 +129,9 @@ export async function fetchLandPrices(center: LatLng): Promise<LandPriceSection>
     return true;
   });
 
-  return { status: "ok", year, points: unique.slice(0, LAND_PRICE_COUNT) };
+  const selected = unique.slice(0, LAND_PRICE_COUNT);
+  const withAppraisal = await attachAppraisals(selected, year).catch(() => selected);
+  return { status: "ok", year, points: withAppraisal };
 }
 
 // ---------- 液状化発生傾向図（XKT025） ----------

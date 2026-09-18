@@ -73,6 +73,27 @@ export type CrimeSection = {
   sourceUrl: string | null;
 };
 
+/** 鑑定評価書（XCT001）から取れる、地価公示地点の補足情報 */
+export type Appraisal = {
+  /** 相続税路線価（円/㎡） */
+  routePrice: number | null;
+  routePriceYear: number | null;
+  /** 高度地区の高さ制限（例: 最高 20m） */
+  heightLimit: string | null;
+  baseCoverageRatio: number | null;
+  baseFloorAreaRatio: number | null;
+  /** 取引事例比較法による比準価格（円/㎡） */
+  comparablePrice: number | null;
+  /** 収益還元法による収益価格（円/㎡） */
+  incomePrice: number | null;
+  /** 還元利回り（%） */
+  capRate: number | null;
+  /** 前面道路（方位・幅員・種別） */
+  frontRoad: string | null;
+  areaDivision: string | null;
+  currentUse: string | null;
+};
+
 export type LandPricePoint = {
   id: string;
   /** 標準地番号（例: さいたま南-2） */
@@ -90,6 +111,7 @@ export type LandPricePoint = {
   surroundings: string | null;
   kind: "地価公示" | "地価調査";
   cityCode: string | null;
+  appraisal?: Appraisal;
 };
 
 export type LandPriceSection = {
