@@ -4,7 +4,14 @@ import { useCallback, useState } from "react";
 import type { RouteResponse } from "@/lib/facts-types";
 import type { LatLng } from "@/lib/types";
 
-export type RouteTarget = `station-${number}` | `shelter-${number}` | "elementary" | "juniorHigh";
+export type RouteTarget =
+  | `station-${number}`
+  | `bus-${number}`
+  | `shelter-${number}`
+  | `library-${number}`
+  | "cityhall"
+  | "elementary"
+  | "juniorHigh";
 
 export type RouteState = {
   target: RouteTarget;
@@ -22,11 +29,17 @@ const STATION_COLORS = ["#2563eb", "#0891b2"];
 
 const SHELTER_COLORS = ["#16a34a", "#15803d", "#166534"];
 
+const BUS_COLORS = ["#d97706", "#b45309"];
+const LIBRARY_COLORS = ["#0f766e", "#115e59"];
+
 export function routeColor(target: RouteTarget): string {
   if (target === "elementary") return "#7c3aed";
   if (target === "juniorHigh") return "#a855f7";
+  if (target === "cityhall") return "#334155";
   const i = Number(target.split("-")[1] ?? 0);
   if (target.startsWith("shelter")) return SHELTER_COLORS[i % SHELTER_COLORS.length] ?? "#16a34a";
+  if (target.startsWith("bus")) return BUS_COLORS[i % BUS_COLORS.length] ?? "#d97706";
+  if (target.startsWith("library")) return LIBRARY_COLORS[i % LIBRARY_COLORS.length] ?? "#0f766e";
   return STATION_COLORS[i % STATION_COLORS.length] ?? "#2563eb";
 }
 

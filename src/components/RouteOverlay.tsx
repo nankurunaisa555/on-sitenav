@@ -6,7 +6,10 @@ import type { RouteState, RouteTarget } from "@/hooks/useRoutes";
 
 function targetEmoji(target: RouteTarget): string {
   if (target.startsWith("station")) return "🚉";
+  if (target.startsWith("bus")) return "🚌";
   if (target.startsWith("shelter")) return "🏃";
+  if (target.startsWith("library")) return "📚";
+  if (target === "cityhall") return "🏛️";
   return "🏫";
 }
 

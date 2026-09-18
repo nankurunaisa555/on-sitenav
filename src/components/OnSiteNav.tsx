@@ -30,7 +30,7 @@ type TabKey = "places" | "land" | "community" | "price";
 const TABS: readonly SheetTab<TabKey>[] = [
   { key: "places", label: "周辺施設" },
   { key: "land", label: "土地・災害" },
-  { key: "community", label: "学区・人口" },
+  { key: "community", label: "交通・学区・人口" },
   { key: "price", label: "価格" },
 ];
 
@@ -77,8 +77,25 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     return code !== null ? CRIME_PREFS[code] ?? null : null;
   }, [searchCenter, mapCenter, initialCenter]);
 
-  const allPlaces = places.data?.places ?? [];
   const nearestStations = places.data?.nearestStations ?? [];
+  // 役所・図書館は国交省データ由来。周辺施設の一覧・ピンにも「最寄り」として混ぜる
+  const civicPlaces = useMemo(() => {
+    const c = facts.data?.civic;
+    if (!c) return [];
+    const list = [...(c.cityHall ? [c.cityHall] : []), ...c.libraries];
+    return list.map((x) => ({
+      id: x.id,
+      name: x.name,
+      category: (x.kind === "cityhall" ? "government" : "library") as CategoryKey,
+      location: x.location,
+      address: x.address ?? "",
+      distanceM: x.distanceM,
+    }));
+  }, [facts.data?.civic]);
+  const allPlaces = useMemo(
+    () => [...(places.data?.places ?? []), ...civicPlaces].sort((a, b) => a.distanceM - b.distanceM),
+    [places.data?.places, civicPlaces],
+  );
   const visiblePlaces = useMemo(() => {
     const filtered =
       activeCategories.size === 0

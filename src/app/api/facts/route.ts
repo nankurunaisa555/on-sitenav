@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type {
+  CivicSection,
   CrimeSection,
   ElevationSection,
   FactsResponse,
@@ -21,6 +22,7 @@ import { fetchLandform, gsiMapUrl } from "@/lib/server/landform";
 import { fetchCrime } from "@/lib/server/crime";
 import { fetchElevation } from "@/lib/server/elevation";
 import { fetchLandPrices, fetchLiquefaction, fetchShelters } from "@/lib/server/reinfolib-extra";
+import { fetchCivic } from "@/lib/server/civic";
 import { fetchPopulation, fetchSchools, fetchZoning, hasReinfolibKey } from "@/lib/server/reinfolib";
 import type { LatLng } from "@/lib/types";
 
@@ -85,6 +87,7 @@ const emptyLandPrice = (status: SectionStatus): LandPriceSection => ({
   year: new Date().getFullYear(),
   points: [],
 });
+const emptyCivic = (status: SectionStatus): CivicSection => ({ status, cityCode: null, cityHall: null, libraries: [] });
 const emptyZoning = (status: SectionStatus): ZoningSection => ({
   status,
   useArea: null,
@@ -134,7 +137,7 @@ export async function GET(request: Request) {
 
   const reinfo = hasReinfolibKey();
 
-  const [hazard, quake, landform, crime, elevation, liquefaction, shelters, landPrice, zoning, school, population] =
+  const [hazard, quake, landform, crime, elevation, liquefaction, shelters, landPrice, civic, zoning, school, population] =
     await Promise.all([
     section<HazardSection>(
       "hazard",
@@ -148,6 +151,7 @@ export async function GET(request: Request) {
     reinfo ? section("liquefaction", () => fetchLiquefaction(center), emptyLiquefaction) : emptyLiquefaction("unavailable"),
     reinfo ? section("shelters", () => fetchShelters(center), emptyShelters) : emptyShelters("unavailable"),
     reinfo ? section("landPrice", () => fetchLandPrices(center), emptyLandPrice) : emptyLandPrice("unavailable"),
+    reinfo ? section("civic", () => fetchCivic(center), emptyCivic) : emptyCivic("unavailable"),
     reinfo ? section("zoning", () => fetchZoning(center), emptyZoning) : emptyZoning("unavailable"),
     reinfo ? section("school", () => fetchSchools(center), emptySchool) : emptySchool("unavailable"),
     reinfo ? section("population", () => fetchPopulation(center), emptyPopulation) : emptyPopulation("unavailable"),
@@ -162,6 +166,7 @@ export async function GET(request: Request) {
     liquefaction,
     shelters,
     landPrice,
+    civic,
     zoning,
     school,
     population,

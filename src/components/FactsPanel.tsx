@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { FactsResponse, HazardKey, LandformInfo, SchoolInfo, SectionStatus } from "@/lib/facts-types";
+import type { CivicPlace, FactsResponse, HazardKey, LandformInfo, SchoolInfo, SectionStatus } from "@/lib/facts-types";
 import type { RouteState, RouteTarget } from "@/hooks/useRoutes";
 import { HAZARD_LAYER_MAP } from "@/lib/hazard-layers";
 import { formatDistance, walkMinutes } from "@/lib/geo";
@@ -45,7 +45,15 @@ export default function FactsPanel({
   routes,
   onToggleRoute,
 }: Props) {
-  const nearestBus = places.find((p) => p.category === "bus") ?? null;
+  // 最寄りバス停: 同名（上り/下り）はまとめて、近い順に2つ
+  const nearestBuses: Place[] = [];
+  for (const p of places) {
+    if (p.category !== "bus") continue;
+    const key = p.name.replace(/[（(].*?[）)]/g, "").replace(/\s.*$/, "").trim();
+    if (nearestBuses.some((b) => b.name.replace(/[（(].*?[）)]/g, "").replace(/\s.*$/, "").trim() === key)) continue;
+    nearestBuses.push(p);
+    if (nearestBuses.length >= 2) break;
+  }
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[env(safe-area-inset-bottom)]">
@@ -368,15 +376,60 @@ export default function FactsPanel({
                 />
               </div>
             ))}
-            <Row label="最寄りバス停">
-              {nearestBus ? (
-                <TransitValue place={nearestBus} />
-              ) : (
+            {nearestBuses.length === 0 && (
+              <Row label="最寄りバス停">
                 <span className="text-sm text-gray-400">半径内に見つかりません</span>
-              )}
-            </Row>
+              </Row>
+            )}
+            {nearestBuses.map((b, i) => (
+              <div key={b.id} className="mt-1 border-t border-gray-100 pt-1">
+                <Row label={`最寄りバス停 ${i + 1}`}>
+                  <TransitValue place={b} />
+                </Row>
+                <RouteButton
+                  target={`bus-${i}`}
+                  label={b.name}
+                  destination={b.location}
+                  origin={origin}
+                  routes={routes}
+                  onToggleRoute={onToggleRoute}
+                />
+              </div>
+            ))}
             <p className="mt-2 text-xs leading-relaxed text-gray-500">
               始発・終電や時刻表は各駅・バス停の「時刻表」リンク（Google マップ）で確認できます。
+            </p>
+          </Section>
+
+          {/* 公共施設（半径外でも最寄り） */}
+          <Section title="役所・図書館（最寄り）" status={facts.civic.status}>
+            {facts.civic.cityHall ? (
+              <CivicRow
+                label={facts.civic.cityHall.sameCity ? "役所（同じ市区町村）" : "役所（最寄り）"}
+                place={facts.civic.cityHall}
+                target="cityhall"
+                origin={origin}
+                routes={routes}
+                onToggleRoute={onToggleRoute}
+              />
+            ) : (
+              <Row label="役所">
+                <Na />
+              </Row>
+            )}
+            {facts.civic.libraries.map((lib, i) => (
+              <CivicRow
+                key={lib.id}
+                label={`図書館 ${i + 1}`}
+                place={lib}
+                target={`library-${i}`}
+                origin={origin}
+                routes={routes}
+                onToggleRoute={onToggleRoute}
+              />
+            ))}
+            <p className="mt-1 text-[11px] leading-snug text-gray-400">
+              出典: 国土数値情報「市区町村役場等」「図書館」。役所は基準点の市区町村（政令市は区）の本庁舎。
             </p>
           </Section>
 
@@ -557,6 +610,42 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg bg-gray-50 py-1.5">
       <p className="text-[11px] text-gray-500">{label}</p>
       <p className="text-sm font-semibold tabular-nums text-gray-900">{value}人</p>
+    </div>
+  );
+}
+
+function CivicRow({
+  label,
+  place,
+  target,
+  origin,
+  routes,
+  onToggleRoute,
+}: {
+  label: string;
+  place: CivicPlace;
+  target: RouteTarget;
+  origin: LatLng | null;
+  routes: ReadonlyMap<RouteTarget, RouteState>;
+  onToggleRoute: (target: RouteTarget, label: string, destination: LatLng) => void;
+}) {
+  return (
+    <div className="mt-1 border-t border-gray-100 pt-1 first:mt-0 first:border-t-0 first:pt-0">
+      <Row label={label}>
+        <span className="font-semibold">{place.name}</span>
+        <span className="ml-2 text-gray-600">
+          {formatDistance(place.distanceM)}・徒歩{walkMinutes(place.distanceM)}分
+        </span>
+        {place.address && <span className="block truncate text-xs text-gray-500">{place.address}</span>}
+      </Row>
+      <RouteButton
+        target={target}
+        label={place.name}
+        destination={place.location}
+        origin={origin}
+        routes={routes}
+        onToggleRoute={onToggleRoute}
+      />
     </div>
   );
 }

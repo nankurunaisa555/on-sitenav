@@ -189,6 +189,25 @@ export type RentStats = {
   median: number | null;
 };
 
+export type CivicPlace = {
+  id: string;
+  kind: "cityhall" | "library";
+  name: string;
+  address: string | null;
+  location: { lat: number; lng: number };
+  distanceM: number;
+};
+
+export type CivicSection = {
+  status: SectionStatus;
+  /** 基準点の市区町村コード（政令市は区） */
+  cityCode: string | null;
+  /** 同じ市区町村の本庁（市役所・区役所・町村役場）。sameCity=false は見つからず最寄りで代替 */
+  cityHall: (CivicPlace & { sameCity: boolean }) | null;
+  /** 最寄りの図書館（半径に関係なく） */
+  libraries: CivicPlace[];
+};
+
 export type ZoningSection = {
   status: SectionStatus;
   useArea: string | null;
@@ -241,6 +260,7 @@ export type FactsResponse = {
   liquefaction: LiquefactionSection;
   shelters: ShelterSection;
   landPrice: LandPriceSection;
+  civic: CivicSection;
   zoning: ZoningSection;
   school: SchoolSection;
   population: PopulationSection;

@@ -28,6 +28,9 @@ export const CATEGORIES: readonly CategoryDef[] = [
   { key: "restaurant", label: "飲食店", emoji: "🍽️", googleTypes: ["restaurant", "cafe"], color: "#ca8a04" },
   { key: "bank", label: "銀行", emoji: "🏦", googleTypes: ["bank", "atm"], color: "#475569" },
   { key: "post", label: "郵便局", emoji: "📮", googleTypes: ["post_office"], color: "#b91c1c" },
+  // 以下は Places ではなく国交省データから「最寄り」を取る（半径外でも表示）
+  { key: "government", label: "役所", emoji: "🏛️", googleTypes: [], color: "#334155" },
+  { key: "library", label: "図書館", emoji: "📚", googleTypes: [], color: "#0f766e" },
 ] as const;
 
 export const CATEGORY_MAP: ReadonlyMap<CategoryKey, CategoryDef> = new Map(

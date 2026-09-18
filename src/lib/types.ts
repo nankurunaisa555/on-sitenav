@@ -16,7 +16,9 @@ export type CategoryKey =
   | "restaurant"
   | "bank"
   | "post"
-  | "shopping";
+  | "shopping"
+  | "government"
+  | "library";
 
 export type Place = {
   id: string;
