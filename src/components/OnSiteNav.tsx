@@ -89,6 +89,9 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const [showCrime, setShowCrime] = useState(false);
   /** 下のリスト（ボトムシート）の表示/非表示。地図を広く見たいときに隠す */
   const [showSheet, setShowSheet] = useState(true);
+  /** シートが地図を覆っている高さ（px）。地図の中心合わせに使う */
+  const [sheetHeight, setSheetHeight] = useState(0);
+  const handleSheetHeight = useCallback((px: number) => setSheetHeight(px), []);
 
   const crimePref = useMemo(() => {
     const code = guessPrefCode(searchCenter ?? mapCenter ?? initialCenter ?? DEFAULT_CENTER);
@@ -263,6 +266,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           onPickPoint={setPickedPoint}
           moveMode={moveMode}
           onStreetView={openStreetView}
+          bottomInsetPx={showSheet ? sheetHeight : 0}
           radiusM={RADIUS_M}
           places={showPins ? visiblePlaces : []}
           selectedId={selectedId}
@@ -410,6 +414,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
             tabs={TABS}
             activeTab={tab}
             onTabChange={setTab}
+            onHeightChange={handleSheetHeight}
             meta={
               tab === "places"
                 ? places.loading

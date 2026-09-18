@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 const PEEK_VH = 38;
 const EXPANDED_VH = 72;
@@ -13,6 +13,8 @@ type Props<K extends string> = {
   onTabChange: (key: K) => void;
   /** ヘッダー右側に出す補足（件数など） */
   meta?: ReactNode;
+  /** シートの実際の高さ（px）が変わったときに通知。地図の中心をずらす計算に使う */
+  onHeightChange?: (px: number) => void;
   children: ReactNode;
 };
 
@@ -22,11 +24,27 @@ export default function BottomSheet<K extends string>({
   activeTab,
   onTabChange,
   meta,
+  onHeightChange,
   children,
 }: Props<K>) {
   const [expanded, setExpanded] = useState(false);
   const [dragOffset, setDragOffset] = useState<number | null>(null);
   const dragStart = useRef<{ y: number; expanded: boolean } | null>(null);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  // 高さの変化（伸縮・アンマウント）を親へ通知
+  useEffect(() => {
+    const el = sectionRef.current;
+    if (!el || !onHeightChange) return;
+    const report = () => onHeightChange(el.getBoundingClientRect().height);
+    report();
+    const ro = new ResizeObserver(report);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      onHeightChange(0);
+    };
+  }, [onHeightChange]);
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -59,6 +77,7 @@ export default function BottomSheet<K extends string>({
 
   return (
     <section
+      ref={sectionRef}
       style={{ height: `${heightVh}dvh` }}
       className={`pointer-events-auto flex w-full min-w-0 flex-col rounded-t-2xl bg-white shadow-[0_-4px_24px_rgba(0,0,0,0.15)] ${
         dragOffset === null ? "transition-[height] duration-300" : ""

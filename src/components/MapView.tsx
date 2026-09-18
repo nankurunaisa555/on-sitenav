@@ -26,6 +26,8 @@ type Props = {
   moveMode: boolean;
   /** 施設の吹き出しから「ストリートビュー」を開く */
   onStreetView: (p: LatLng, title: string) => void;
+  /** 下部シートが地図を覆っている高さ（px）。中心合わせをこの分だけ上にずらす */
+  bottomInsetPx: number;
   radiusM: number;
   places: Place[];
   selectedId: string | null;
@@ -44,6 +46,7 @@ export default function MapView({
   onPickPoint,
   moveMode,
   onStreetView,
+  bottomInsetPx,
   radiusM,
   places,
   selectedId,
@@ -75,8 +78,8 @@ export default function MapView({
     >
       <SearchRadius center={searchCenter} radiusM={radiusM} />
       <AccuracyCircle center={userLocation} radiusM={userAccuracyM} />
-      <PanTo target={places.find((p) => p.id === selectedId)?.location ?? null} />
-      <PanTo target={searchCenter} />
+      <PanTo target={places.find((p) => p.id === selectedId)?.location ?? null} bottomInsetPx={bottomInsetPx} />
+      <PanTo target={searchCenter} bottomInsetPx={bottomInsetPx} />
       {children}
 
       {showBasisPin && searchCenter && (
@@ -243,11 +246,38 @@ function MapCircle({
   return null;
 }
 
-/** target が変わったらそこへ滑らかに移動する */
-function PanTo({ target }: { target: LatLng | null }) {
+/**
+ * target が変わったらそこへ滑らかに移動する。
+ * 下部シートに隠れていない部分の中心に来るよう、シートの高さの半分だけ地図をずらす。
+ */
+function PanTo({ target, bottomInsetPx }: { target: LatLng | null; bottomInsetPx: number }) {
   const map = useMap();
+  const insetRef = useRef(bottomInsetPx);
+  insetRef.current = bottomInsetPx;
   useEffect(() => {
-    if (map && target) map.panTo(target);
+    if (!map || !target) return;
+    map.panTo(target);
+    // シートの高さは初回描画の直後に確定するので、少し待ってから最新値でずらす
+    let applied = false;
+    const apply = () => {
+      if (applied) return;
+      applied = true;
+      const offset = insetRef.current / 2;
+      if (offset > 0) map.panBy(0, offset);
+    };
+    const timer = setTimeout(apply, 80);
+    const idle = map.addListener("idle", () => {
+      // 地図がまだ描画されていなかった場合（非表示タブなど）は最初の idle で適用
+      if (!applied) {
+        clearTimeout(timer);
+        apply();
+      }
+      idle.remove();
+    });
+    return () => {
+      clearTimeout(timer);
+      idle.remove();
+    };
   }, [map, target]);
   return null;
 }
