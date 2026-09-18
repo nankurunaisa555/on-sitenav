@@ -75,6 +75,8 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const [hazardLayers, setHazardLayers] = useState<Set<HazardKey>>(new Set());
   /** 地図タップで選んだ、次の検索の基準候補 */
   const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
+  /** 基準点の移動モード（ON のときだけ地図タップで基準候補を置く） */
+  const [moveMode, setMoveMode] = useState(false);
   /** 周辺施設ピンの一括表示/非表示。ルート表示時は自動で隠す */
   const [showPins, setShowPins] = useState(true);
   const [showCrime, setShowCrime] = useState(false);
@@ -132,6 +134,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       setSearchCenter(center);
       setSelectedId(null);
       setPickedPoint(null);
+      setMoveMode(false);
       routing.clear(); // 出発点が変わるのでルートは消す
       trades.reset();
       nimby.reset();
@@ -251,6 +254,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           searchCenter={searchCenter}
           pickedPoint={pickedPoint}
           onPickPoint={setPickedPoint}
+          moveMode={moveMode}
           radiusM={RADIUS_M}
           places={showPins ? visiblePlaces : []}
           selectedId={selectedId}
@@ -268,20 +272,27 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
             <span className="text-sm font-bold tracking-tight text-gray-900">On-siteNav</span>
             <span className="text-xs text-gray-500">現地ファクト</span>
           </div>
-          {pickedPoint && !loading ? (
+          {moveMode && pickedPoint && !loading ? (
             <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-amber-500 pl-4 pr-1.5 py-1.5 text-sm font-medium text-white shadow-lg">
               <button type="button" onClick={() => runSearch(pickedPoint)} className="active:opacity-80">
-                📍 タップした地点を基準に検索
+                📌 ここを基準に検索
               </button>
               <button
                 type="button"
-                onClick={() => setPickedPoint(null)}
-                aria-label="選択を解除"
+                onClick={() => {
+                  setPickedPoint(null);
+                  setMoveMode(false);
+                }}
+                aria-label="移動をやめる"
                 className="flex h-7 w-7 items-center justify-center rounded-full bg-white/25 text-xs"
               >
                 ✕
               </button>
             </div>
+          ) : moveMode ? (
+            <span className="pointer-events-auto rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-white shadow-lg">
+              📌 移動モード：地図をタップして基準点を置いてください
+            </span>
           ) : (
             moved &&
             mapCenter &&
@@ -295,9 +306,9 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               </button>
             )
           )}
-          {!pickedPoint && !moved && searchCenter && !loading && (
+          {!moveMode && !moved && searchCenter && !loading && (
             <span className="pointer-events-none rounded-full bg-black/55 px-3 py-1 text-[11px] text-white">
-              距離は「基準点」からの直線距離。地図をタップすると基準点を変えられます
+              距離は「基準点」からの直線距離。右下「📌」で基準点を移動できます
             </span>
           )}
           {loading && (
@@ -312,7 +323,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           )}
           {geo.status === "denied" && (
             <span className="pointer-events-auto rounded-full bg-amber-50 px-4 py-2 text-xs text-amber-800 shadow">
-              位置情報が許可されていません。地図をタップして基準点を選んでください
+              位置情報が許可されていません。右下「📌」で移動モードにして地図をタップしてください
             </span>
           )}
         </div>
@@ -325,15 +336,30 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           <div className="mr-3 mb-3 flex items-end justify-end gap-2">
             <button
               type="button"
+              onClick={() => {
+                setMoveMode((v) => {
+                  if (v) setPickedPoint(null);
+                  return !v;
+                });
+              }}
+              aria-pressed={moveMode}
+              aria-label={moveMode ? "基準点の移動モードを終了" : "基準点を移動"}
+              className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full text-lg shadow-lg active:scale-95 ${
+                moveMode ? "bg-amber-500 text-white" : "bg-white text-gray-800"
+              }`}
+            >
+              <span aria-hidden>📌</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setShowPins((v) => !v)}
               aria-pressed={!showPins}
               aria-label={showPins ? "周辺施設のピンを隠す" : "周辺施設のピンを表示"}
-              className={`pointer-events-auto flex h-12 items-center gap-1.5 rounded-full px-4 text-sm font-medium shadow-lg active:scale-95 ${
+              className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full text-lg shadow-lg active:scale-95 ${
                 showPins ? "bg-white text-gray-800" : "bg-gray-900 text-white"
               }`}
             >
               <span aria-hidden>{showPins ? "📍" : "🚫"}</span>
-              ピン
             </button>
             <LayerMenu
               enabled={hazardLayers}

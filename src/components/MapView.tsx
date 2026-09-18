@@ -8,7 +8,7 @@ import {
   type MapCameraChangedEvent,
 } from "@vis.gl/react-google-maps";
 import { CATEGORY_MAP } from "@/lib/categories";
-import { distanceMeters } from "@/lib/geo";
+import { distanceMeters, formatDistance } from "@/lib/geo";
 import type { LatLng, Place } from "@/lib/types";
 
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID || "DEMO_MAP_ID";
@@ -22,6 +22,8 @@ type Props = {
   /** 地図タップで選んだ候補地点 */
   pickedPoint: LatLng | null;
   onPickPoint: (p: LatLng | null) => void;
+  /** 基準点の移動モード。ON のときだけ地図タップで候補地点を置く */
+  moveMode: boolean;
   radiusM: number;
   places: Place[];
   selectedId: string | null;
@@ -38,6 +40,7 @@ export default function MapView({
   searchCenter,
   pickedPoint,
   onPickPoint,
+  moveMode,
   radiusM,
   places,
   selectedId,
@@ -60,6 +63,7 @@ export default function MapView({
       clickableIcons={false}
       onClick={(e) => {
         onSelect(null);
+        if (!moveMode) return;
         const ll = e.detail.latLng;
         if (ll) onPickPoint({ lat: ll.lat, lng: ll.lng });
       }}
@@ -113,11 +117,25 @@ export default function MapView({
             zIndex={selected ? 999 : undefined}
             onClick={() => onSelect(selected ? null : place.id)}
           >
-            <CategoryMarker
-              emoji={place.sub?.emoji ?? cat?.emoji ?? "📍"}
-              color={cat?.color ?? "#6b7280"}
-              selected={selected}
-            />
+            <div className="flex flex-col items-center">
+              {selected && (
+                <div className="mb-1 max-w-[220px] rounded-lg bg-gray-900/90 px-2.5 py-1.5 text-white shadow-lg">
+                  <div className="truncate text-xs font-semibold">
+                    {place.sub ? `${place.sub.emoji} ${place.sub.label}：` : ""}
+                    {place.name}
+                  </div>
+                  <div className="text-[10px] text-white/80">
+                    基準点から {formatDistance(place.distanceM)}
+                    {place.address ? `・${place.address.replace(/^.*?[都道府県]/, "").slice(0, 24)}` : ""}
+                  </div>
+                </div>
+              )}
+              <CategoryMarker
+                emoji={place.sub?.emoji ?? cat?.emoji ?? "📍"}
+                color={cat?.color ?? "#6b7280"}
+                selected={selected}
+              />
+            </div>
           </AdvancedMarker>
         );
       })}

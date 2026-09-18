@@ -8,6 +8,7 @@ export type NimbyKindKey =
   | "sewage"
   | "crematory"
   | "cemetery"
+  | "shrine"
   | "funeral"
   | "pachinko"
   | "adult"
@@ -53,11 +54,18 @@ export const NIMBY_KINDS: readonly NimbyKind[] = [
   },
   {
     key: "cemetery",
-    label: "墓地・霊園・寺",
+    label: "墓地・霊園",
     emoji: "🪦",
-    namePattern: /霊園|墓地|墓苑|墓園|共同墓|納骨|[^店]寺$|寺院|^.{1,6}寺(?![^\s（(]*(前|通り|橋|駅|バス|店|カフェ|食堂))/,
+    namePattern: /霊園|墓地|墓苑|墓園|共同墓|納骨|樹木葬|永代供養/,
     types: ["cemetery"],
-    exclude: /寺町|寺尾|寺田|寺島|寺前|寺内|寺山|寺下|寺沢|寺崎|寺西|寺本|小学校|中学校|保育|幼稚園|駅|バス|カフェ|食堂|ラーメン|そば|うどん|ホテル|美容|接骨|歯科|クリニック|薬局|不動産|コンビニ|ペット|動物|犬|猫/,
+    exclude: /ペット|動物|犬|猫|石材|仏具/,
+  },
+  {
+    key: "shrine",
+    label: "神社・寺",
+    emoji: "⛩️",
+    namePattern: /神社|神宮|八幡|天満宮|大社|稲荷|宮$|寺$|寺院|院$|観音|不動|地蔵|薬師|明神|大師|^.{1,8}寺(?![^\s（(]*(前|通り|橋|駅|バス|店|カフェ|食堂))/,
+    exclude: /寺町|寺尾|寺田|寺島|寺前|寺内|寺山|寺下|寺沢|寺崎|寺西|寺本|小学校|中学校|保育|幼稚園|学園|駅|バス|停$|前$|通り|カフェ|食堂|ラーメン|そば|うどん|ホテル|美容|接骨|整骨|歯科|クリニック|医院|病院|薬局|不動産|コンビニ|ペット|動物|マンション|団地|公園|商店|会館|会議|美術|博物|事務所|法律|税理|会計|工業|製作/,
   },
   {
     key: "funeral",
@@ -149,7 +157,8 @@ export const NIMBY_TEXT_QUERIES: readonly { query: string; fallback: NimbyKindKe
   { query: "下水処理場 水再生センター", fallback: "sewage" },
   { query: "産業廃棄物 処理", fallback: null },
   { query: "火葬場 斎場", fallback: null },
-  { query: "霊園 墓地 寺", fallback: null },
+  { query: "霊園 墓地", fallback: null },
+  { query: "神社 寺", fallback: "shrine" },
   { query: "物流センター 配送センター", fallback: null },
   { query: "変電所", fallback: "substation" },
   { query: "ガスタンク LPガス", fallback: "gastank" },
