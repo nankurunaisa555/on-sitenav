@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type {
+  CrimeSection,
   FactsResponse,
   HazardSection,
   LandformSection,
@@ -13,6 +14,7 @@ import { disaportalUrl } from "@/lib/hazard-layers";
 import { sampleHazards } from "@/lib/server/hazard";
 import { fetchQuake, jshisUrl } from "@/lib/server/jshis";
 import { fetchLandform, gsiMapUrl } from "@/lib/server/landform";
+import { fetchCrime } from "@/lib/server/crime";
 import { fetchPopulation, fetchSchools, fetchZoning, hasReinfolibKey } from "@/lib/server/reinfolib";
 import type { LatLng } from "@/lib/types";
 
@@ -54,6 +56,15 @@ const emptyLandform = (center: LatLng, status: SectionStatus): LandformSection =
   natural: null,
   artificial: null,
   sourceUrl: gsiMapUrl(center),
+});
+const emptyCrime = (status: SectionStatus): CrimeSection => ({
+  status,
+  available: false,
+  pref: null,
+  year: null,
+  nearby: [],
+  around500m: null,
+  sourceUrl: null,
 });
 const emptyZoning = (status: SectionStatus): ZoningSection => ({
   status,
@@ -104,7 +115,7 @@ export async function GET(request: Request) {
 
   const reinfo = hasReinfolibKey();
 
-  const [hazard, quake, landform, zoning, school, population] = await Promise.all([
+  const [hazard, quake, landform, crime, zoning, school, population] = await Promise.all([
     section<HazardSection>(
       "hazard",
       async () => ({ status: "ok", items: await sampleHazards(center), sourceUrl: disaportalUrl(lat, lng) }),
@@ -112,6 +123,7 @@ export async function GET(request: Request) {
     ),
     section("quake", () => fetchQuake(center), (s) => emptyQuake(center, s)),
     section("landform", () => fetchLandform(center), (s) => emptyLandform(center, s)),
+    section("crime", () => fetchCrime(center), emptyCrime),
     reinfo ? section("zoning", () => fetchZoning(center), emptyZoning) : emptyZoning("unavailable"),
     reinfo ? section("school", () => fetchSchools(center), emptySchool) : emptySchool("unavailable"),
     reinfo ? section("population", () => fetchPopulation(center), emptyPopulation) : emptyPopulation("unavailable"),
@@ -121,6 +133,7 @@ export async function GET(request: Request) {
     hazard,
     quake,
     landform,
+    crime,
     zoning,
     school,
     population,

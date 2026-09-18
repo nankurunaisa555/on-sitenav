@@ -22,6 +22,8 @@ type Props = {
   nearestStations: Place[];
   enabledHazards: ReadonlySet<HazardKey>;
   onToggleHazard: (key: HazardKey) => void;
+  crimeEnabled: boolean;
+  onToggleCrime: () => void;
   /** ルートの出発点（基準点） */
   origin: LatLng | null;
   routes: ReadonlyMap<RouteTarget, RouteState>;
@@ -37,6 +39,8 @@ export default function FactsPanel({
   nearestStations,
   enabledHazards,
   onToggleHazard,
+  crimeEnabled,
+  onToggleCrime,
   origin,
   routes,
   onToggleRoute,
@@ -133,6 +137,65 @@ export default function FactsPanel({
             <p className="mt-1 text-[11px] leading-snug text-gray-400">
               出典: 国土地理院「地形分類（自然地形・人工地形）」ベクトルタイル提供実験
             </p>
+          </Section>
+
+          {/* 犯罪発生 */}
+          <Section
+            title={`犯罪発生（窃盗7手口${facts.crime.year ? `・${facts.crime.year}年` : ""}）`}
+            status={facts.crime.status}
+            source={facts.crime.sourceUrl ?? undefined}
+            sourceLabel={facts.crime.pref ? `${facts.crime.pref}警察` : undefined}
+          >
+            {!facts.crime.available ? (
+              <p className="text-xs leading-relaxed text-gray-500">
+                この地域の犯罪オープンデータは未整備です（現在は埼玉県のみ対応）。
+                県警の犯罪発生マップは下の「その他の確認先」から開けます。
+              </p>
+            ) : (
+              <>
+                <div className="mb-1 flex items-center justify-between gap-2">
+                  <span className="text-xs text-gray-500">町丁目ごとの年間件数</span>
+                  <button
+                    type="button"
+                    onClick={onToggleCrime}
+                    aria-pressed={crimeEnabled}
+                    className={`shrink-0 rounded-md border px-2 py-1 text-xs font-medium ${
+                      crimeEnabled ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-600"
+                    }`}
+                  >
+                    {crimeEnabled ? "地図に表示中" : "地図に表示"}
+                  </button>
+                </div>
+                {facts.crime.around500m ? (
+                  <CrimeRows
+                    label={`周辺500m 合計（${facts.crime.around500m.townCount}町丁目）`}
+                    total={facts.crime.around500m.total}
+                    byType={facts.crime.around500m.byType}
+                    emphasis
+                  />
+                ) : (
+                  <Row label="周辺500m">
+                    <span className="text-sm text-gray-400">発生記録なし</span>
+                  </Row>
+                )}
+                {facts.crime.nearby.length > 0 && (
+                  <div className="mt-1 border-t border-gray-100 pt-1">
+                    <p className="pt-1 text-[11px] font-semibold text-gray-500">近くの町丁目（代表点までの距離）</p>
+                    {facts.crime.nearby.map((t) => (
+                      <CrimeRows
+                        key={t.name}
+                        label={`${t.name.replace(/^.*?[市区町村]\s/, "")}（${formatDistance(t.distanceM)}）`}
+                        total={t.total}
+                        byType={t.byType}
+                      />
+                    ))}
+                  </div>
+                )}
+                <p className="mt-1 text-[11px] leading-snug text-gray-400">
+                  ひったくり・車上ねらい・部品ねらい・自販機ねらい・自動車盗・オートバイ盗・自転車盗の認知件数。町丁目の代表点に集約した目安です。
+                </p>
+              </>
+            )}
           </Section>
 
           {/* 都市計画 */}
@@ -365,6 +428,34 @@ function PopulationRows({
       {rate !== null && (
         <p className="mt-1 text-right text-xs text-gray-600">
           2020→2030 増減率 <span className={`font-semibold ${rate < 0 ? "text-red-600" : "text-emerald-700"}`}>{rate > 0 ? "+" : ""}{rate.toFixed(1)}%</span>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function CrimeRows({
+  label,
+  total,
+  byType,
+  emphasis = false,
+}: {
+  label: string;
+  total: number;
+  byType: { type: string; count: number }[];
+  emphasis?: boolean;
+}) {
+  return (
+    <div className="py-1.5">
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={`min-w-0 truncate text-sm ${emphasis ? "font-semibold text-gray-900" : "text-gray-700"}`}>{label}</span>
+        <span className={`shrink-0 font-semibold text-gray-900 ${emphasis ? "text-base" : "text-sm"}`}>
+          {total}件<span className="ml-0.5 text-xs font-normal text-gray-500">/年</span>
+        </span>
+      </div>
+      {byType.length > 0 && (
+        <p className="mt-0.5 text-xs text-gray-500">
+          {byType.map((r) => `${r.type} ${r.count}`).join("・")}
         </p>
       )}
     </div>

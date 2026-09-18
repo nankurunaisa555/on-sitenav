@@ -55,6 +55,24 @@ export type LandformSection = {
   sourceUrl: string;
 };
 
+export type CrimeCounts = {
+  total: number;
+  byType: { type: string; count: number }[];
+};
+
+export type CrimeSection = {
+  status: SectionStatus;
+  /** その地点の県のデータを用意しているか */
+  available: boolean;
+  pref: string | null;
+  year: number | null;
+  /** 基準点に近い町丁目（代表点までの距離順、最大4件） */
+  nearby: (CrimeCounts & { name: string; distanceM: number })[];
+  /** 500m 以内の町丁目の合計 */
+  around500m: (CrimeCounts & { townCount: number }) | null;
+  sourceUrl: string | null;
+};
+
 export type ZoningSection = {
   status: SectionStatus;
   useArea: string | null;
@@ -102,6 +120,7 @@ export type FactsResponse = {
   hazard: HazardSection;
   quake: QuakeSection;
   landform: LandformSection;
+  crime: CrimeSection;
   zoning: ZoningSection;
   school: SchoolSection;
   population: PopulationSection;

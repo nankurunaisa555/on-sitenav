@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { APIProvider } from "@vis.gl/react-google-maps";
 import BottomSheet, { type SheetTab } from "./BottomSheet";
 import FactsPanel from "./FactsPanel";
+import CrimeOverlay from "./CrimeOverlay";
 import HazardOverlay from "./HazardOverlay";
 import LayerMenu from "./LayerMenu";
 import MapView from "./MapView";
@@ -15,6 +16,7 @@ import { usePlaces } from "@/hooks/usePlaces";
 import { useRoutes, type RouteTarget } from "@/hooks/useRoutes";
 import type { HazardKey } from "@/lib/facts-types";
 import { DEFAULT_CENTER, distanceMeters, formatDistance } from "@/lib/geo";
+import { CRIME_PREFS, guessPrefCode } from "@/lib/crime";
 import type { CategoryKey, LatLng } from "@/lib/types";
 
 const RADIUS_M = 800;
@@ -27,6 +29,16 @@ const TABS: readonly SheetTab<TabKey>[] = [
   { key: "land", label: "土地・災害" },
   { key: "community", label: "学区・人口" },
 ];
+
+function readLatLngFromUrl(): LatLng | null {
+  if (typeof window === "undefined") return null;
+  const q = new URLSearchParams(window.location.search);
+  const lat = Number(q.get("lat"));
+  const lng = Number(q.get("lng"));
+  if (!q.has("lat") || !Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
+}
 
 /** 基準点が現在地か、タップ地点/地図中心かをヘッダーに示す */
 function basisLabel(center: LatLng, user: (LatLng & { accuracyM: number }) | null): string {
@@ -51,6 +63,12 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
   /** 周辺施設ピンの一括表示/非表示。ルート表示時は自動で隠す */
   const [showPins, setShowPins] = useState(true);
+  const [showCrime, setShowCrime] = useState(false);
+
+  const crimePref = useMemo(() => {
+    const code = guessPrefCode(searchCenter ?? mapCenter ?? initialCenter ?? DEFAULT_CENTER);
+    return code !== null ? CRIME_PREFS[code] ?? null : null;
+  }, [searchCenter, mapCenter, initialCenter]);
 
   const allPlaces = places.data?.places ?? [];
   const nearestStations = places.data?.nearestStations ?? [];
@@ -80,9 +98,16 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     [places.search, facts.load, routing.clear],
   );
 
-  // 起動時: 現在地を取得してそこを検索。取れなければ東京駅を表示だけする
+  // 起動時: URL に ?lat=&lng= があればその地点を基準に（共有リンク用）。
+  // 無ければ現在地を取得してそこを検索。取れなければ東京駅を表示だけする
   useEffect(() => {
     let cancelled = false;
+    const fromUrl = readLatLngFromUrl();
+    if (fromUrl) {
+      setInitialCenter(fromUrl);
+      runSearch(fromUrl);
+      return;
+    }
     void geo.locate().then((pos) => {
       if (cancelled) return;
       const center = pos ?? DEFAULT_CENTER;
@@ -94,6 +119,15 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 基準点が決まったら URL に反映して、そのまま共有できるようにする
+  useEffect(() => {
+    if (!searchCenter || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("lat", searchCenter.lat.toFixed(6));
+    url.searchParams.set("lng", searchCenter.lng.toFixed(6));
+    window.history.replaceState(null, "", url);
+  }, [searchCenter]);
 
   const handleLocate = async () => {
     const pos = await geo.locate();
@@ -162,6 +196,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           onCameraChanged={setMapCenter}
         >
           <HazardOverlay enabled={hazardLayers} />
+          <CrimeOverlay enabled={showCrime} center={searchCenter ?? mapCenter} />
           <RouteOverlay routes={routing.routes} />
         </MapView>
 
@@ -235,7 +270,14 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               <span aria-hidden>{showPins ? "📍" : "🚫"}</span>
               {showPins ? "ピン" : "ピン非表示"}
             </button>
-            <LayerMenu enabled={hazardLayers} onToggle={toggleHazard} />
+            <LayerMenu
+              enabled={hazardLayers}
+              onToggle={toggleHazard}
+              crimeEnabled={showCrime}
+              onToggleCrime={() => setShowCrime((v) => !v)}
+              crimeAvailable={crimePref !== null}
+              crimeLabel={crimePref ? `犯罪発生 ${crimePref.name}（2024年）` : "犯罪発生（この地域は未対応）"}
+            />
             <button
               type="button"
               onClick={handleLocate}
@@ -283,6 +325,8 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                 nearestStations={nearestStations}
                 enabledHazards={hazardLayers}
                 onToggleHazard={toggleHazard}
+                crimeEnabled={showCrime}
+                onToggleCrime={() => setShowCrime((v) => !v)}
                 origin={searchCenter}
                 routes={routing.routes}
                 onToggleRoute={toggleRoute}

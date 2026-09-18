@@ -47,9 +47,23 @@ npm run dev
 | 人口（2020/2030/2050 推計・増減率） | 不動産情報ライブラリ XKT013（250mメッシュ） | REINFOLIB |
 | 基準点から最寄り駅・学区の小中学校への徒歩ルート（道なり距離・時間） | Google Routes API（学校位置は不動産情報ライブラリ XKT006） | Google |
 | 駅・バス停の時刻表・始発終電 | 公開 API が無いため Google マップへリンク | — |
-| 犯罪発生マップ | 都道府県警の Web 地図へリンク | — |
+| 犯罪発生（窃盗7手口・町丁目別の年間件数）レイヤーと周辺500m集計 | 県警「犯罪オープンデータ」CSV ＋ 国交省「位置参照情報」を事前集計（現在は埼玉県） | 不要 |
+| 犯罪発生マップ（公式） | 都道府県警の Web 地図へリンク | — |
 
 ハザード判定は該当ズーム 16 のタイル画像の地点ピクセル色を凡例色と照合して行う（サーバー側 [src/lib/server/hazard.ts](src/lib/server/hazard.ts)）。目安であり、正式な区域は各自治体のハザードマップで確認すること。
+
+### 犯罪オープンデータの更新
+
+```bash
+npm run build:crime            # 埼玉県・2024年（既定）
+node scripts/build-crime-data.mjs --pref 11 --year 2025
+```
+
+県警の CSV と国交省の位置参照情報をダウンロードし、町丁目ごとに集計して `src/data/crime-<県コード>.json` を生成する。他県を追加する場合は `scripts/build-crime-data.mjs` の `PREFS` に CSV の URL を追加し、`src/lib/crime.ts` の `CRIME_PREFS` と `guessPrefCode` に登録する。
+
+### 共有リンク
+
+基準点は URL に `?lat=&lng=` として反映されるので、そのまま共有すれば同じ地点で開ける。
 
 ## 構成
 
@@ -71,15 +85,19 @@ src/
 │   ├── PlaceList.tsx         # 周辺施設タブ（カテゴリ別一覧・時刻表リンク）
 │   ├── FactsPanel.tsx        # 土地・災害タブ / 学区・人口タブ（group で切替）
 │   ├── RouteOverlay.tsx      # 徒歩ルートの折れ線と目的地ラベル
+│   ├── CrimeOverlay.tsx      # 犯罪発生（町丁目別件数）の円レイヤー
 │   └── CategoryFilter.tsx
 ├── hooks/
 │   ├── useGeolocation.ts / usePlaces.ts / useFacts.ts
+├── data/
+│   └── crime-11.json         # 埼玉県 犯罪オープンデータ集計（scripts/build-crime-data.mjs で生成）
 └── lib/
     ├── categories.ts         # カテゴリ定義（表示順・色・Google types の対応）
     ├── hazard-layers.ts      # ハザードレイヤー定義（タイル URL・色）
     ├── geo.ts / tile.ts      # 距離計算・タイル座標計算
     ├── types.ts / facts-types.ts
     ├── landform-codes.json   # 地形分類コード → 名称・成り立ち・リスク（国土地理院 style.js 由来）
+    ├── crime.ts              # 犯罪データの読み込み・色・凡例
     └── server/               # サーバー専用: hazard.ts（タイル色判定）, jshis.ts, landform.ts, reinfolib.ts
 ```
 

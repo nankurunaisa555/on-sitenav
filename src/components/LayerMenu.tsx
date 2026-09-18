@@ -3,15 +3,29 @@
 import { useState } from "react";
 import type { HazardKey } from "@/lib/facts-types";
 import { HAZARD_LAYERS } from "@/lib/hazard-layers";
+import { CRIME_LEGEND } from "@/lib/crime";
 
 type Props = {
   enabled: ReadonlySet<HazardKey>;
   onToggle: (key: HazardKey) => void;
+  crimeEnabled: boolean;
+  onToggleCrime: () => void;
+  /** 基準点の県に犯罪データがあるか（無ければ理由を表示） */
+  crimeAvailable: boolean;
+  crimeLabel: string;
 };
 
 /** 地図右上の「レイヤー」ボタンと、ハザードレイヤーの ON/OFF メニュー */
-export default function LayerMenu({ enabled, onToggle }: Props) {
+export default function LayerMenu({
+  enabled,
+  onToggle,
+  crimeEnabled,
+  onToggleCrime,
+  crimeAvailable,
+  crimeLabel,
+}: Props) {
   const [open, setOpen] = useState(false);
+  const activeCount = enabled.size + (crimeEnabled ? 1 : 0);
 
   return (
     <div className="pointer-events-auto relative">
@@ -21,13 +35,13 @@ export default function LayerMenu({ enabled, onToggle }: Props) {
         aria-expanded={open}
         aria-label="ハザードレイヤーの表示切替"
         className={`flex h-12 items-center gap-1.5 rounded-full px-4 text-sm font-medium shadow-lg active:scale-95 ${
-          enabled.size > 0 ? "bg-gray-900 text-white" : "bg-white text-gray-800"
+          activeCount > 0 ? "bg-gray-900 text-white" : "bg-white text-gray-800"
         }`}
       >
         <span aria-hidden>🗺️</span>
         レイヤー
-        {enabled.size > 0 && (
-          <span className="rounded-full bg-white/20 px-1.5 text-xs">{enabled.size}</span>
+        {activeCount > 0 && (
+          <span className="rounded-full bg-white/20 px-1.5 text-xs">{activeCount}</span>
         )}
       </button>
 
@@ -58,8 +72,42 @@ export default function LayerMenu({ enabled, onToggle }: Props) {
               );
             })}
           </ul>
-          <p className="px-2 pt-2 pb-1 text-[11px] leading-snug text-gray-400">
+          <p className="px-2 pt-1 pb-1 text-[11px] leading-snug text-gray-400">
             出典: 国土地理院「重ねるハザードマップ」
+          </p>
+
+          <p className="mt-1 border-t border-gray-100 px-2 pt-2 pb-1 text-xs font-semibold text-gray-500">
+            犯罪発生（窃盗7手口・町丁目別）
+          </p>
+          <label
+            className={`flex items-center gap-3 rounded-lg px-2 py-2 ${
+              crimeAvailable ? "cursor-pointer active:bg-gray-50" : "opacity-50"
+            }`}
+          >
+            <input
+              type="checkbox"
+              checked={crimeEnabled}
+              disabled={!crimeAvailable}
+              onChange={onToggleCrime}
+              className="h-4 w-4 accent-gray-900"
+            />
+            <span className="h-3 w-3 shrink-0 rounded-full bg-red-600" style={{ opacity: crimeEnabled ? 1 : 0.35 }} />
+            <span className="min-w-0 flex-1 text-sm text-gray-900">{crimeLabel}</span>
+          </label>
+          {crimeEnabled && (
+            <div className="flex flex-wrap gap-x-3 gap-y-1 px-2 pb-1">
+              {CRIME_LEGEND.map((l) => (
+                <span key={l.label} className="flex items-center gap-1 text-[11px] text-gray-600">
+                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: l.color }} />
+                  {l.label}
+                </span>
+              ))}
+            </div>
+          )}
+          <p className="px-2 pt-1 pb-1 text-[11px] leading-snug text-gray-400">
+            {crimeAvailable
+              ? "町丁目の代表点に年間件数を集約。出典: 県警 犯罪オープンデータ／国交省 位置参照情報"
+              : "この地域の犯罪オープンデータは未整備です（現在は埼玉県のみ）"}
           </p>
         </div>
       )}
