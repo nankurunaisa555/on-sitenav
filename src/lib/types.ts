@@ -18,7 +18,8 @@ export type CategoryKey =
   | "post"
   | "shopping"
   | "government"
-  | "library";
+  | "library"
+  | "nimby";
 
 export type Place = {
   id: string;
@@ -28,6 +29,16 @@ export type Place = {
   address: string;
   /** 検索中心からの距離（メートル） */
   distanceM: number;
+  /** 細分類（嫌悪施設の種別など）。あればピンの絵文字と一覧の表記に使う */
+  sub?: { key: string; label: string; emoji: string };
+};
+
+export type NimbyPlace = Place & { category: "nimby"; sub: NonNullable<Place["sub"]> };
+
+export type NimbyResponse = {
+  center: LatLng;
+  radiusM: number;
+  items: NimbyPlace[];
 };
 
 export type PlacesResponse = {

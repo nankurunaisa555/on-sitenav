@@ -31,6 +31,8 @@ export const CATEGORIES: readonly CategoryDef[] = [
   // 以下は Places ではなく国交省データから「最寄り」を取る（半径外でも表示）
   { key: "government", label: "役所", emoji: "🏛️", googleTypes: [], color: "#334155" },
   { key: "library", label: "図書館", emoji: "📚", googleTypes: [], color: "#0f766e" },
+  // 嫌悪施設はオンデマンド（/api/nimby）。sub に種別が入る
+  { key: "nimby", label: "嫌悪施設", emoji: "⚠️", googleTypes: [], color: "#7f1d1d" },
 ] as const;
 
 export const CATEGORY_MAP: ReadonlyMap<CategoryKey, CategoryDef> = new Map(

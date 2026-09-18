@@ -16,6 +16,7 @@ type Props = {
   active: ReadonlySet<CategoryKey>;
   onToggleCategory: (key: CategoryKey) => void;
   onResetCategory: () => void;
+  nimby: { loaded: boolean; enabled: boolean; loading: boolean; error: string | null; onClick: () => void };
 };
 
 /** 時刻表を確認できる Google マップのスポットページ */
@@ -33,6 +34,7 @@ export default function PlaceList({
   active,
   onToggleCategory,
   onResetCategory,
+  nimby,
 }: Props) {
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -67,12 +69,19 @@ export default function PlaceList({
         active={active}
         onToggle={onToggleCategory}
         onReset={onResetCategory}
+        nimby={nimby}
       />
       <div
         ref={listRef}
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-[env(safe-area-inset-bottom)]"
       >
         {error && <p className="my-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {nimby.error && <p className="my-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">嫌悪施設: {nimby.error}</p>}
+        {nimby.loaded && nimby.enabled && (
+          <p className="my-2 rounded-lg bg-red-50 p-2 text-[11px] leading-snug text-red-800">
+            ⚠️ 嫌悪施設は半径1.5kmを名称・業種から自動判定した候補です。誤検出や漏れがあるため、現地で必ずご確認ください。暴力団事務所は公開データに存在しないため対象外です。
+          </p>
+        )}
         {!error && !loading && places.length === 0 && (
           <p className="my-8 text-center text-sm text-gray-500">
             この範囲に施設が見つかりませんでした
@@ -121,7 +130,14 @@ function PlaceRow({
         >
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-[15px] font-medium text-gray-900">{place.name}</span>
+            <span className="block truncate text-[15px] font-medium text-gray-900">
+              {place.sub && (
+                <span className="mr-1 rounded bg-red-100 px-1 py-0.5 text-[11px] font-semibold text-red-800">
+                  {place.sub.emoji} {place.sub.label}
+                </span>
+              )}
+              {place.name}
+            </span>
             {place.address && (
               <span className="block truncate text-xs text-gray-500">{place.address}</span>
             )}

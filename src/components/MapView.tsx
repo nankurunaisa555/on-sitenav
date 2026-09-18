@@ -114,7 +114,7 @@ export default function MapView({
             onClick={() => onSelect(selected ? null : place.id)}
           >
             <CategoryMarker
-              emoji={cat?.emoji ?? "📍"}
+              emoji={place.sub?.emoji ?? cat?.emoji ?? "📍"}
               color={cat?.color ?? "#6b7280"}
               selected={selected}
             />

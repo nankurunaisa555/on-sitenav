@@ -17,6 +17,7 @@ import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePlaces } from "@/hooks/usePlaces";
 import { useRoutes, type RouteTarget } from "@/hooks/useRoutes";
 import { useTrades } from "@/hooks/useTrades";
+import { useNimby } from "@/hooks/useNimby";
 import type { HazardKey } from "@/lib/facts-types";
 import { DEFAULT_CENTER, distanceMeters, formatDistance } from "@/lib/geo";
 import { CRIME_PREFS, guessPrefCode } from "@/lib/crime";
@@ -56,6 +57,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const facts = useFacts();
   const routing = useRoutes();
   const trades = useTrades();
+  const nimby = useNimby();
 
   const [initialCenter, setInitialCenter] = useState<LatLng | null>(null);
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
@@ -92,9 +94,10 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       distanceM: x.distanceM,
     }));
   }, [facts.data?.civic]);
+  const nimbyPlaces = useMemo(() => (nimby.enabled && nimby.data ? nimby.data.items : []), [nimby.enabled, nimby.data]);
   const allPlaces = useMemo(
-    () => [...(places.data?.places ?? []), ...civicPlaces].sort((a, b) => a.distanceM - b.distanceM),
-    [places.data?.places, civicPlaces],
+    () => [...(places.data?.places ?? []), ...civicPlaces, ...nimbyPlaces].sort((a, b) => a.distanceM - b.distanceM),
+    [places.data?.places, civicPlaces, nimbyPlaces],
   );
   const visiblePlaces = useMemo(() => {
     const filtered =
@@ -116,11 +119,12 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       setPickedPoint(null);
       routing.clear(); // 出発点が変わるのでルートは消す
       trades.reset();
+      nimby.reset();
       setShowPins(true);
       void places.search(center, RADIUS_M);
       void facts.load(center);
     },
-    [places.search, facts.load, routing.clear, trades.reset],
+    [places.search, facts.load, routing.clear, trades.reset, nimby.reset],
   );
 
   // 起動時: URL に ?lat=&lng= があればその地点を基準に（共有リンク用）。
@@ -371,6 +375,15 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                 active={activeCategories}
                 onToggleCategory={toggleCategory}
                 onResetCategory={() => setActiveCategories(new Set())}
+                nimby={{
+                  loaded: nimby.data !== null,
+                  enabled: nimby.enabled,
+                  loading: nimby.loading,
+                  error: nimby.error,
+                  onClick: () => {
+                    if (searchCenter) void nimby.toggle(searchCenter);
+                  },
+                }}
               />
             ) : (
               <FactsPanel
