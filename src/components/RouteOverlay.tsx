@@ -13,7 +13,8 @@ const TARGET_EMOJI: Record<RouteTarget, string> = {
 /** 徒歩ルートの折れ線と目的地マーカーを地図に描く */
 export default function RouteOverlay({ routes }: { routes: ReadonlyMap<RouteTarget, RouteState> }) {
   const map = useMap();
-  const lines = useRef(new Map<RouteTarget, google.maps.Polyline>());
+  /** 各ルートは白フチ（下）と色線（上）の2本で描く */
+  const lines = useRef(new Map<RouteTarget, { casing: google.maps.Polyline; line: google.maps.Polyline }>());
   const fitted = useRef(new Set<RouteTarget>());
 
   useEffect(() => {
@@ -21,9 +22,10 @@ export default function RouteOverlay({ routes }: { routes: ReadonlyMap<RouteTarg
     const current = lines.current;
 
     // 消えたルートを片付ける
-    for (const [target, line] of current) {
+    for (const [target, pair] of current) {
       if (!routes.has(target)) {
-        line.setMap(null);
+        pair.casing.setMap(null);
+        pair.line.setMap(null);
         current.delete(target);
         fitted.current.delete(target);
       }
@@ -31,19 +33,30 @@ export default function RouteOverlay({ routes }: { routes: ReadonlyMap<RouteTarg
 
     for (const [target, route] of routes) {
       if (route.status !== "ok" || !route.path) continue;
-      let line = current.get(target);
-      if (!line) {
-        line = new google.maps.Polyline({
-          strokeColor: route.color,
-          strokeOpacity: 0.9,
-          strokeWeight: 5,
-          clickable: false,
-          zIndex: 10,
-        });
-        current.set(target, line);
+      let pair = current.get(target);
+      if (!pair) {
+        pair = {
+          casing: new google.maps.Polyline({
+            strokeColor: "#ffffff",
+            strokeOpacity: 0.95,
+            strokeWeight: 11,
+            clickable: false,
+            zIndex: 10,
+          }),
+          line: new google.maps.Polyline({
+            strokeColor: route.color,
+            strokeOpacity: 1,
+            strokeWeight: 6,
+            clickable: false,
+            zIndex: 11,
+          }),
+        };
+        current.set(target, pair);
       }
-      line.setPath(route.path);
-      line.setMap(map);
+      pair.casing.setPath(route.path);
+      pair.line.setPath(route.path);
+      pair.casing.setMap(map);
+      pair.line.setMap(map);
 
       // 初回だけルート全体が入るように寄せる（下のシートに隠れない余白をとる）
       if (!fitted.current.has(target)) {
@@ -57,7 +70,10 @@ export default function RouteOverlay({ routes }: { routes: ReadonlyMap<RouteTarg
 
   useEffect(
     () => () => {
-      for (const line of lines.current.values()) line.setMap(null);
+      for (const pair of lines.current.values()) {
+        pair.casing.setMap(null);
+        pair.line.setMap(null);
+      }
       lines.current.clear();
     },
     [],
@@ -69,7 +85,7 @@ export default function RouteOverlay({ routes }: { routes: ReadonlyMap<RouteTarg
         <AdvancedMarker key={route.target} position={route.destination} zIndex={900} title={route.label}>
           <div className="flex flex-col items-center">
             <div
-              className="flex items-center gap-1 rounded-full border-2 border-white px-2 py-0.5 text-xs font-semibold text-white shadow-md"
+              className="flex items-center gap-1 rounded-full border-2 border-white px-2.5 py-1 text-sm font-bold text-white shadow-lg"
               style={{ backgroundColor: route.color }}
             >
               <span>{TARGET_EMOJI[route.target]}</span>

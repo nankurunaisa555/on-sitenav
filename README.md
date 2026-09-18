@@ -45,6 +45,7 @@ npm run dev
 | 用途地域・建蔽率・容積率・防火地域・高さ制限の目安 | 不動産情報ライブラリ XKT002 / XKT014 | REINFOLIB |
 | 小学校区・中学校区 | 不動産情報ライブラリ XKT004 / XKT005 | REINFOLIB |
 | 人口（2020/2030/2050 推計・増減率） | 不動産情報ライブラリ XKT013（250mメッシュ） | REINFOLIB |
+| 基準点から最寄り駅・学区の小中学校への徒歩ルート（道なり距離・時間） | Google Routes API（学校位置は不動産情報ライブラリ XKT006） | Google |
 | 駅・バス停の時刻表・始発終電 | 公開 API が無いため Google マップへリンク | — |
 | 犯罪発生マップ | 都道府県警の Web 地図へリンク | — |
 
@@ -68,7 +69,8 @@ src/
 │   ├── LayerMenu.tsx         # レイヤー ON/OFF メニュー
 │   ├── BottomSheet.tsx       # 下部シート（スワイプ伸縮・タブ）
 │   ├── PlaceList.tsx         # 周辺施設タブ（カテゴリ別一覧・時刻表リンク）
-│   ├── FactsPanel.tsx        # 土地・災害タブ
+│   ├── FactsPanel.tsx        # 土地・災害タブ / 学区・人口タブ（group で切替）
+│   ├── RouteOverlay.tsx      # 徒歩ルートの折れ線と目的地ラベル
 │   └── CategoryFilter.tsx
 ├── hooks/
 │   ├── useGeolocation.ts / usePlaces.ts / useFacts.ts

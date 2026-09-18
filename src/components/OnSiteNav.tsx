@@ -21,10 +21,11 @@ const RADIUS_M = 800;
 /** 検索中心からこれ以上動いたら「このエリアを検索」を出す */
 const MOVED_THRESHOLD_M = 150;
 
-type TabKey = "places" | "facts";
+type TabKey = "places" | "land" | "community";
 const TABS: readonly SheetTab<TabKey>[] = [
   { key: "places", label: "周辺施設" },
-  { key: "facts", label: "土地・災害" },
+  { key: "land", label: "土地・災害" },
+  { key: "community", label: "学区・人口" },
 ];
 
 /** 基準点が現在地か、タップ地点/地図中心かをヘッダーに示す */
@@ -48,6 +49,8 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const [hazardLayers, setHazardLayers] = useState<Set<HazardKey>>(new Set());
   /** 地図タップで選んだ、次の検索の基準候補 */
   const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
+  /** 周辺施設ピンの一括表示/非表示。ルート表示時は自動で隠す */
+  const [showPins, setShowPins] = useState(true);
 
   const allPlaces = places.data?.places ?? [];
   const visiblePlaces = useMemo(
@@ -64,6 +67,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       setSelectedId(null);
       setPickedPoint(null);
       routing.clear(); // 出発点が変わるのでルートは消す
+      setShowPins(true);
       void places.search(center, RADIUS_M);
       void facts.load(center);
     },
@@ -103,9 +107,11 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const toggleRoute = useCallback(
     (target: RouteTarget, label: string, destination: LatLng) => {
       if (!searchCenter) return;
+      // ルートを新しく出すときはピンを隠して経路を見やすくする
+      if (!routing.routes.has(target)) setShowPins(false);
       void routing.toggle(target, label, searchCenter, destination);
     },
-    [searchCenter, routing.toggle],
+    [searchCenter, routing.toggle, routing.routes],
   );
 
   const toggleHazard = useCallback((key: HazardKey) => {
@@ -144,7 +150,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           pickedPoint={pickedPoint}
           onPickPoint={setPickedPoint}
           radiusM={RADIUS_M}
-          places={visiblePlaces}
+          places={showPins ? visiblePlaces : []}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onCameraChanged={setMapCenter}
@@ -211,6 +217,18 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
         {/* 下部: レイヤー切替 + 現在地ボタン + ボトムシート */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col">
           <div className="mr-3 mb-3 flex items-end justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPins((v) => !v)}
+              aria-pressed={!showPins}
+              aria-label={showPins ? "周辺施設のピンを隠す" : "周辺施設のピンを表示"}
+              className={`pointer-events-auto flex h-12 items-center gap-1.5 rounded-full px-4 text-sm font-medium shadow-lg active:scale-95 ${
+                showPins ? "bg-white text-gray-800" : "bg-gray-900 text-white"
+              }`}
+            >
+              <span aria-hidden>{showPins ? "📍" : "🚫"}</span>
+              {showPins ? "ピン" : "ピン非表示"}
+            </button>
             <LayerMenu enabled={hazardLayers} onToggle={toggleHazard} />
             <button
               type="button"
@@ -230,7 +248,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               tab === "places"
                 ? places.loading
                   ? "検索中…"
-                  : `半径${formatDistance(RADIUS_M)}・${allPlaces.length}件`
+                  : `半径${formatDistance(RADIUS_M)}・${allPlaces.length}件${showPins ? "" : "（ピン非表示）"}`
                 : facts.loading
                   ? "取得中…"
                   : searchCenter
@@ -251,6 +269,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               />
             ) : (
               <FactsPanel
+                group={tab}
                 facts={facts.data}
                 loading={facts.loading}
                 error={facts.error}

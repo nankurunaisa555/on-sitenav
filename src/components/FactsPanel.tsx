@@ -9,7 +9,11 @@ import type { LatLng, Place } from "@/lib/types";
 
 const REINFOLIB_APPLY_URL = "https://www.reinfolib.mlit.go.jp/api/request/";
 
+/** land = 土地・災害タブ, community = 学区・人口タブ */
+export type FactsGroup = "land" | "community";
+
 type Props = {
+  group: FactsGroup;
   facts: FactsResponse | null;
   loading: boolean;
   error: string | null;
@@ -23,6 +27,7 @@ type Props = {
 };
 
 export default function FactsPanel({
+  group,
   facts,
   loading,
   error,
@@ -46,7 +51,7 @@ export default function FactsPanel({
         </p>
       )}
 
-      {facts && (
+      {facts && group === "land" && (
         <div className={`space-y-4 pb-4 ${loading ? "opacity-60" : ""}`}>
           {/* 災害リスク */}
           <Section title="災害リスク（この地点）" status={facts.hazard.status} source={facts.hazard.sourceUrl} sourceLabel="重ねるハザードマップ">
@@ -148,6 +153,28 @@ export default function FactsPanel({
             )}
           </Section>
 
+          {/* 外部リンク */}
+          <Section title="その他の確認先" status="ok">
+            <ul className="space-y-1">
+              {facts.links.map((l) => (
+                <li key={l.url}>
+                  <a
+                    href={l.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-sky-700 underline underline-offset-2"
+                  >
+                    {l.label} ↗
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </Section>
+        </div>
+      )}
+
+      {facts && group === "community" && (
+        <div className={`space-y-4 pb-4 ${loading ? "opacity-60" : ""}`}>
           {/* 学区 */}
           <Section title="学区" status={facts.school.status}>
             <SchoolRow
@@ -226,23 +253,6 @@ export default function FactsPanel({
             </p>
           </Section>
 
-          {/* 外部リンク */}
-          <Section title="その他の確認先" status="ok">
-            <ul className="space-y-1">
-              {facts.links.map((l) => (
-                <li key={l.url}>
-                  <a
-                    href={l.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-sky-700 underline underline-offset-2"
-                  >
-                    {l.label} ↗
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </Section>
         </div>
       )}
     </div>
