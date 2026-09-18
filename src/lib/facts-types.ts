@@ -67,10 +67,27 @@ export type ZoningSection = {
   heightNote: string | null;
 };
 
+export type SchoolInfo = {
+  name: string;
+  /** 学校コード（学区データと学校データで共通） */
+  code: string | null;
+  address: string | null;
+  /** 学校の所在地点。学校データと照合できなかった場合は null */
+  location: { lat: number; lng: number } | null;
+};
+
 export type SchoolSection = {
   status: SectionStatus;
-  elementary: string | null;
-  juniorHigh: string | null;
+  elementary: SchoolInfo | null;
+  juniorHigh: SchoolInfo | null;
+};
+
+/** /api/route のレスポンス */
+export type RouteResponse = {
+  distanceM: number;
+  durationS: number;
+  /** 経路の折れ線（緯度経度） */
+  path: { lat: number; lng: number }[];
 };
 
 export type PopulationSection = {

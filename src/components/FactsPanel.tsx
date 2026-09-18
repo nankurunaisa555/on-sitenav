@@ -1,10 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
-import type { FactsResponse, HazardKey, LandformInfo, SectionStatus } from "@/lib/facts-types";
+import type { FactsResponse, HazardKey, LandformInfo, SchoolInfo, SectionStatus } from "@/lib/facts-types";
+import type { RouteState, RouteTarget } from "@/hooks/useRoutes";
 import { HAZARD_LAYER_MAP } from "@/lib/hazard-layers";
 import { formatDistance, walkMinutes } from "@/lib/geo";
-import type { Place } from "@/lib/types";
+import type { LatLng, Place } from "@/lib/types";
 
 const REINFOLIB_APPLY_URL = "https://www.reinfolib.mlit.go.jp/api/request/";
 
@@ -15,6 +16,10 @@ type Props = {
   places: Place[];
   enabledHazards: ReadonlySet<HazardKey>;
   onToggleHazard: (key: HazardKey) => void;
+  /** ルートの出発点（基準点） */
+  origin: LatLng | null;
+  routes: ReadonlyMap<RouteTarget, RouteState>;
+  onToggleRoute: (target: RouteTarget, label: string, destination: LatLng) => void;
 };
 
 export default function FactsPanel({
@@ -24,6 +29,9 @@ export default function FactsPanel({
   places,
   enabledHazards,
   onToggleHazard,
+  origin,
+  routes,
+  onToggleRoute,
 }: Props) {
   const nearestStation = places.find((p) => p.category === "station") ?? null;
   const nearestBus = places.find((p) => p.category === "bus") ?? null;
@@ -142,8 +150,25 @@ export default function FactsPanel({
 
           {/* 学区 */}
           <Section title="学区" status={facts.school.status}>
-            <Row label="小学校">{facts.school.elementary ? <Strong>{facts.school.elementary}</Strong> : <Na />}</Row>
-            <Row label="中学校">{facts.school.juniorHigh ? <Strong>{facts.school.juniorHigh}</Strong> : <Na />}</Row>
+            <SchoolRow
+              label="小学校"
+              school={facts.school.elementary}
+              target="elementary"
+              origin={origin}
+              routes={routes}
+              onToggleRoute={onToggleRoute}
+            />
+            <SchoolRow
+              label="中学校"
+              school={facts.school.juniorHigh}
+              target="juniorHigh"
+              origin={origin}
+              routes={routes}
+              onToggleRoute={onToggleRoute}
+            />
+            <p className="mt-1 text-[11px] leading-snug text-gray-400">
+              学区は国土数値情報（令和5年度）に基づく目安です。最新の指定は自治体にご確認ください。
+            </p>
           </Section>
 
           {/* 人口 */}
@@ -179,6 +204,16 @@ export default function FactsPanel({
                 <span className="text-sm text-gray-400">半径内に見つかりません</span>
               )}
             </Row>
+            {nearestStation && (
+              <RouteButton
+                target="station"
+                label={nearestStation.name}
+                destination={nearestStation.location}
+                origin={origin}
+                routes={routes}
+                onToggleRoute={onToggleRoute}
+              />
+            )}
             <Row label="最寄りバス停">
               {nearestBus ? (
                 <TransitValue place={nearestBus} />
@@ -357,6 +392,106 @@ function Stat({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg bg-gray-50 py-1.5">
       <p className="text-[11px] text-gray-500">{label}</p>
       <p className="text-sm font-semibold tabular-nums text-gray-900">{value}人</p>
+    </div>
+  );
+}
+
+function SchoolRow({
+  label,
+  school,
+  target,
+  origin,
+  routes,
+  onToggleRoute,
+}: {
+  label: string;
+  school: SchoolInfo | null;
+  target: RouteTarget;
+  origin: LatLng | null;
+  routes: ReadonlyMap<RouteTarget, RouteState>;
+  onToggleRoute: (target: RouteTarget, label: string, destination: LatLng) => void;
+}) {
+  return (
+    <>
+      <Row label={label}>
+        {school ? (
+          <>
+            <Strong>{school.name}</Strong>
+            {school.address && (
+              <span className="block truncate text-xs text-gray-500">{school.address}</span>
+            )}
+          </>
+        ) : (
+          <Na />
+        )}
+      </Row>
+      {school?.location && (
+        <RouteButton
+          target={target}
+          label={school.name}
+          destination={school.location}
+          origin={origin}
+          routes={routes}
+          onToggleRoute={onToggleRoute}
+        />
+      )}
+    </>
+  );
+}
+
+/** 基準点からの徒歩ルートの ON/OFF と結果（道なり距離・時間） */
+function RouteButton({
+  target,
+  label,
+  destination,
+  origin,
+  routes,
+  onToggleRoute,
+}: {
+  target: RouteTarget;
+  label: string;
+  destination: LatLng;
+  origin: LatLng | null;
+  routes: ReadonlyMap<RouteTarget, RouteState>;
+  onToggleRoute: (target: RouteTarget, label: string, destination: LatLng) => void;
+}) {
+  const route = routes.get(target);
+  const on = Boolean(route);
+  const gmaps = origin
+    ? `https://www.google.com/maps/dir/?api=1&origin=${origin.lat},${origin.lng}&destination=${destination.lat},${destination.lng}&travelmode=walking`
+    : null;
+
+  return (
+    <div className="mb-1 flex flex-wrap items-center justify-end gap-2">
+      {route?.status === "ok" && route.distanceM !== undefined && route.durationS !== undefined && (
+        <span className="text-sm font-semibold" style={{ color: route.color }}>
+          徒歩{Math.max(1, Math.round(route.durationS / 60))}分・道なり{formatDistance(route.distanceM)}
+        </span>
+      )}
+      {route?.status === "error" && <span className="text-xs text-red-600">{route.error}</span>}
+      <button
+        type="button"
+        disabled={!origin}
+        onClick={() => onToggleRoute(target, label, destination)}
+        aria-pressed={on}
+        className={`rounded-md border px-2 py-1 text-xs font-medium disabled:opacity-40 ${
+          on ? "border-transparent text-white" : "border-gray-200 text-gray-700"
+        }`}
+        style={on ? { backgroundColor: route?.color } : undefined}
+      >
+        {route?.status === "loading" ? "取得中…" : on ? "ルートを消す" : "ルートを表示"}
+      </button>
+      {gmaps && (
+        <a
+          href={gmaps}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="rounded-md border border-gray-200 px-2 py-1 text-xs font-medium text-sky-700"
+          aria-label={`${label}への徒歩ルートを Google マップで開く`}
+        >
+          Google マップ ↗
+        </a>
+      )}
     </div>
   );
 }

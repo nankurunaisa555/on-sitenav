@@ -8,9 +8,11 @@ import HazardOverlay from "./HazardOverlay";
 import LayerMenu from "./LayerMenu";
 import MapView from "./MapView";
 import PlaceList from "./PlaceList";
+import RouteOverlay from "./RouteOverlay";
 import { useFacts } from "@/hooks/useFacts";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePlaces } from "@/hooks/usePlaces";
+import { useRoutes, type RouteTarget } from "@/hooks/useRoutes";
 import type { HazardKey } from "@/lib/facts-types";
 import { DEFAULT_CENTER, distanceMeters, formatDistance } from "@/lib/geo";
 import type { CategoryKey, LatLng } from "@/lib/types";
@@ -35,6 +37,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const geo = useGeolocation();
   const places = usePlaces();
   const facts = useFacts();
+  const routing = useRoutes();
 
   const [initialCenter, setInitialCenter] = useState<LatLng | null>(null);
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
@@ -60,10 +63,11 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       setSearchCenter(center);
       setSelectedId(null);
       setPickedPoint(null);
+      routing.clear(); // 出発点が変わるのでルートは消す
       void places.search(center, RADIUS_M);
       void facts.load(center);
     },
-    [places.search, facts.load],
+    [places.search, facts.load, routing.clear],
   );
 
   // 起動時: 現在地を取得してそこを検索。取れなければ東京駅を表示だけする
@@ -95,6 +99,14 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       return next;
     });
   }, []);
+
+  const toggleRoute = useCallback(
+    (target: RouteTarget, label: string, destination: LatLng) => {
+      if (!searchCenter) return;
+      void routing.toggle(target, label, searchCenter, destination);
+    },
+    [searchCenter, routing.toggle],
+  );
 
   const toggleHazard = useCallback((key: HazardKey) => {
     setHazardLayers((prev) => {
@@ -138,6 +150,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           onCameraChanged={setMapCenter}
         >
           <HazardOverlay enabled={hazardLayers} />
+          <RouteOverlay routes={routing.routes} />
         </MapView>
 
         {/* 地図上のオーバーレイ UI（上部） */}
@@ -244,6 +257,9 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                 places={allPlaces}
                 enabledHazards={hazardLayers}
                 onToggleHazard={toggleHazard}
+                origin={searchCenter}
+                routes={routing.routes}
+                onToggleRoute={toggleRoute}
               />
             )}
           </BottomSheet>

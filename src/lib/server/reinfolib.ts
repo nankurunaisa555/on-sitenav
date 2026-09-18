@@ -1,4 +1,4 @@
-import type { PopulationSection, SchoolSection, ZoningSection } from "@/lib/facts-types";
+import type { PopulationSection, SchoolInfo, SchoolSection, ZoningSection } from "@/lib/facts-types";
 import { lngLatToTile } from "@/lib/tile";
 import type { LatLng } from "@/lib/types";
 
@@ -11,6 +11,7 @@ const BASE = "https://www.reinfolib.mlit.go.jp/ex-api/external";
 const TILE_ZOOM = 15;
 
 type Geometry =
+  | { type: "Point"; coordinates: number[] }
   | { type: "Polygon"; coordinates: number[][][] }
   | { type: "MultiPolygon"; coordinates: number[][][][] };
 type Feature = { geometry: Geometry | null; properties: Record<string, unknown> };
@@ -21,9 +22,12 @@ export function hasReinfolibKey(): boolean {
 }
 
 async function fetchTile(api: string, center: LatLng, z = TILE_ZOOM): Promise<Feature[]> {
+  return fetchTileXY(api, lngLatToTile(center, z));
+}
+
+async function fetchTileXY(api: string, t: { z: number; x: number; y: number }): Promise<Feature[]> {
   const key = process.env.REINFOLIB_API_KEY;
   if (!key) throw new Error("REINFOLIB_API_KEY missing");
-  const t = lngLatToTile(center, z);
   const url = `${BASE}/${api}?response_format=geojson&z=${t.z}&x=${t.x}&y=${t.y}`;
   const res = await fetch(url, {
     headers: { "Ocp-Apim-Subscription-Key": key },
@@ -54,7 +58,7 @@ function inPolygon(p: LatLng, poly: number[][][]): boolean {
 }
 
 function contains(p: LatLng, g: Geometry | null): boolean {
-  if (!g) return false;
+  if (!g || g.type === "Point") return false;
   if (g.type === "Polygon") return inPolygon(p, g.coordinates);
   return g.coordinates.some((poly) => inPolygon(p, poly));
 }
@@ -108,23 +112,96 @@ export async function fetchZoning(center: LatLng): Promise<ZoningSection> {
   };
 }
 
-/** 学区データの校名フィールドは A27_004_ja / A32_004_ja のように末尾 _004 で終わる */
-function schoolName(props: Record<string, unknown>): string | null {
-  const key = Object.keys(props).find((k) => /_004(_ja)?$/.test(k));
+/** 学区データ（A27: 小学校区, A32: 中学校区）の属性はプレフィックスが違うだけなので末尾番号で読む */
+function districtField(props: Record<string, unknown>, suffix: string): string | null {
+  const key = Object.keys(props).find((k) => new RegExp(`_${suffix}(_ja)?$`).test(k));
   return key ? str(props[key]) : null;
+}
+
+type SchoolPoint = { code: string | null; name: string; location: LatLng };
+
+function toSchoolPoint(f: Feature): SchoolPoint | null {
+  const g = f.geometry;
+  if (!g || g.type !== "Point") return null;
+  const [lng, lat] = g.coordinates;
+  const name = str(f.properties.P29_004_ja);
+  if (lng === undefined || lat === undefined || !name) return null;
+  return { code: str(f.properties.P29_002), name, location: { lat, lng } };
+}
+
+/** 「さいたま市立田島小学校」→「田島小学校」のように設置者名を落として比較する */
+function normalizeSchoolName(name: string): string {
+  return name.replace(/^.*?(市立|区立|町立|村立|組合立|都立|県立|府立|道立|私立|国立)/, "").replace(/\s/g, "");
+}
+
+/**
+ * 学区データの学校を、学校データ（P29, 点）から探して所在地を付ける。
+ * 学校コードで一致させ、無ければ名称で照合。学区が広い場合は隣接タイルも見る。
+ */
+async function locateSchool(
+  center: LatLng,
+  code: string | null,
+  name: string | null,
+  cache: Map<string, Promise<SchoolPoint[]>>,
+): Promise<LatLng | null> {
+  if (!name && !code) return null;
+  const want = name ? normalizeSchoolName(name) : null;
+  const match = (pts: SchoolPoint[]) =>
+    pts.find((p) => code && p.code === code) ??
+    pts.find((p) => want && normalizeSchoolName(p.name) === want) ??
+    null;
+
+  const z = 13;
+  const t = lngLatToTile(center, z);
+  const load = (dx: number, dy: number) => {
+    const key = `${z}/${t.x + dx}/${t.y + dy}`;
+    let p = cache.get(key);
+    if (!p) {
+      p = fetchTileXY("XKT006", { z, x: t.x + dx, y: t.y + dy })
+        .then((fs) => fs.map(toSchoolPoint).filter((x): x is SchoolPoint => x !== null))
+        .catch(() => [] as SchoolPoint[]);
+      cache.set(key, p);
+    }
+    return p;
+  };
+
+  const here = match(await load(0, 0));
+  if (here) return here.location;
+
+  // 隣接 8 タイル
+  const neighbors = await Promise.all(
+    [-1, 0, 1].flatMap((dx) => [-1, 0, 1].filter((dy) => dx !== 0 || dy !== 0).map((dy) => load(dx, dy))),
+  );
+  return match(neighbors.flat())?.location ?? null;
+}
+
+async function schoolInfo(
+  center: LatLng,
+  districtFeatures: Feature[],
+  cache: Map<string, Promise<SchoolPoint[]>>,
+): Promise<SchoolInfo | null> {
+  const props = findContaining(districtFeatures, center)?.properties;
+  if (!props) return null;
+  const name = districtField(props, "004");
+  if (!name) return null;
+  const code = districtField(props, "003");
+  const address = districtField(props, "005");
+  const location = await locateSchool(center, code, name, cache);
+  return { name, code, address, location };
 }
 
 export async function fetchSchools(center: LatLng): Promise<SchoolSection> {
   const [elem, jh] = await Promise.all([fetchTile("XKT004", center), fetchTile("XKT005", center)]);
-  return {
-    status: "ok",
-    elementary: schoolName(findContaining(elem, center)?.properties ?? {}),
-    juniorHigh: schoolName(findContaining(jh, center)?.properties ?? {}),
-  };
+  const cache = new Map<string, Promise<SchoolPoint[]>>();
+  const [elementary, juniorHigh] = await Promise.all([
+    schoolInfo(center, elem, cache),
+    schoolInfo(center, jh, cache),
+  ]);
+  return { status: "ok", elementary, juniorHigh };
 }
 
 function meshCentroid(g: Geometry | null): LatLng | null {
-  if (!g) return null;
+  if (!g || g.type === "Point") return null;
   const ring = g.type === "Polygon" ? g.coordinates[0] : g.coordinates[0]?.[0];
   if (!ring || ring.length === 0) return null;
   let lng = 0;
