@@ -21,10 +21,24 @@ export default function StreetViewModal({ target, title, onClose }: Props) {
   const [state, setState] = useState<"loading" | "ok" | "none" | "error">("loading");
 
   useEffect(() => {
-    if (!target || !containerRef.current) return;
+    const container = containerRef.current;
+    if (!target || !container) return;
     setState("loading");
     const service = new google.maps.StreetViewService();
     let cancelled = false;
+
+    // モーダルを開くたびに描画先の要素が作り直されるので、パノラマも毎回新しく作る
+    // （古いインスタンスを再利用すると破棄済みの要素に描こうとして真っ暗になる）
+    const pano = new google.maps.StreetViewPanorama(container, {
+      visible: false,
+      addressControl: false,
+      fullscreenControl: false,
+      motionTracking: false,
+      motionTrackingControl: false,
+      showRoadLabels: true,
+      zoom: 0.8,
+    });
+    panoRef.current = pano;
 
     void service
       .getPanorama({
@@ -34,28 +48,18 @@ export default function StreetViewModal({ target, title, onClose }: Props) {
         preference: google.maps.StreetViewPreference.NEAREST,
       })
       .then(({ data }) => {
-        if (cancelled || !containerRef.current || !data.location?.latLng) return;
+        if (cancelled || !data.location?.latLng || !data.location.pano) return;
         // カメラは撮影地点から対象地点の方を向ける
         const heading = google.maps.geometry?.spherical
           ? google.maps.geometry.spherical.computeHeading(data.location.latLng, new google.maps.LatLng(target))
           : 0;
-        if (!panoRef.current) {
-          panoRef.current = new google.maps.StreetViewPanorama(containerRef.current, {
-            pano: data.location.pano,
-            pov: { heading, pitch: 0 },
-            zoom: 0.8,
-            addressControl: false,
-            fullscreenControl: false,
-            motionTracking: false,
-            motionTrackingControl: false,
-            showRoadLabels: true,
-          });
-        } else {
-          panoRef.current.setPano(data.location.pano ?? "");
-          panoRef.current.setPov({ heading, pitch: 0 });
-        }
-        panoRef.current.setVisible(true);
+        pano.setPano(data.location.pano);
+        pano.setPov({ heading, pitch: 0 });
+        pano.setVisible(true);
         setState("ok");
+        // レイアウト確定後にサイズを再計算させる（初回描画が欠けるのを防ぐ）
+        requestAnimationFrame(() => google.maps.event.trigger(pano, "resize"));
+        setTimeout(() => google.maps.event.trigger(pano, "resize"), 400);
       })
       .catch(() => {
         if (!cancelled) setState("none");
@@ -63,13 +67,10 @@ export default function StreetViewModal({ target, title, onClose }: Props) {
 
     return () => {
       cancelled = true;
+      pano.setVisible(false);
+      google.maps.event.clearInstanceListeners(pano);
+      panoRef.current = null;
     };
-  }, [target]);
-
-  // 閉じるときにパノラマを片付ける
-  useEffect(() => {
-    if (target) return;
-    panoRef.current?.setVisible(false);
   }, [target]);
 
   if (!target) return null;
@@ -81,13 +82,24 @@ export default function StreetViewModal({ target, title, onClose }: Props) {
           <p className="text-xs text-white/70">📷 ストリートビュー</p>
           <p className="truncate text-sm font-semibold">{title ?? `${target.lat.toFixed(5)}, ${target.lng.toFixed(5)}`}</p>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="shrink-0 rounded-full bg-white/15 px-4 py-2 text-sm font-medium active:bg-white/25"
-        >
-          閉じる ✕
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          <a
+            href={`https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${target.lat},${target.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="rounded-full bg-white/15 px-3 py-2 text-xs font-medium active:bg-white/25"
+            aria-label="Google マップアプリでストリートビューを開く"
+          >
+            Google マップ ↗
+          </a>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-full bg-white/15 px-4 py-2 text-sm font-medium active:bg-white/25"
+          >
+            閉じる ✕
+          </button>
+        </div>
       </header>
       <div className="relative min-h-0 flex-1">
         <div ref={containerRef} className="h-full w-full" />
@@ -99,8 +111,9 @@ export default function StreetViewModal({ target, title, onClose }: Props) {
           </div>
         )}
       </div>
-      <p className="bg-black/80 px-4 py-2 text-center text-[11px] text-white/60">
-        撮影時期は Google 側のデータによります。現況と異なる場合があります。
+      <p className="bg-black/80 px-4 py-2 text-center text-[11px] leading-snug text-white/60">
+        撮影時期は Google 側のデータによります。画面が黒いままの場合は、ブラウザの広告ブロック／シールドで WebGL
+        が制限されている可能性があります（右上「Google マップ ↗」で同じ地点をアプリで開けます）。
       </p>
     </div>
   );
