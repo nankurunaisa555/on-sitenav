@@ -2,28 +2,43 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { APIProvider } from "@vis.gl/react-google-maps";
+import BottomSheet, { type SheetTab } from "./BottomSheet";
+import FactsPanel from "./FactsPanel";
+import HazardOverlay from "./HazardOverlay";
+import LayerMenu from "./LayerMenu";
 import MapView from "./MapView";
-import PlacePanel from "./PlacePanel";
+import PlaceList from "./PlaceList";
+import { useFacts } from "@/hooks/useFacts";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePlaces } from "@/hooks/usePlaces";
-import { DEFAULT_CENTER, distanceMeters } from "@/lib/geo";
+import type { HazardKey } from "@/lib/facts-types";
+import { DEFAULT_CENTER, distanceMeters, formatDistance } from "@/lib/geo";
 import type { CategoryKey, LatLng } from "@/lib/types";
 
 const RADIUS_M = 800;
 /** 検索中心からこれ以上動いたら「このエリアを検索」を出す */
 const MOVED_THRESHOLD_M = 150;
 
+type TabKey = "places" | "facts";
+const TABS: readonly SheetTab<TabKey>[] = [
+  { key: "places", label: "周辺施設" },
+  { key: "facts", label: "土地・災害" },
+];
+
 export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const geo = useGeolocation();
-  const { data, loading, error, search } = usePlaces();
+  const places = usePlaces();
+  const facts = useFacts();
 
   const [initialCenter, setInitialCenter] = useState<LatLng | null>(null);
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
   const [searchCenter, setSearchCenter] = useState<LatLng | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [activeCategories, setActiveCategories] = useState<Set<CategoryKey>>(new Set());
+  const [tab, setTab] = useState<TabKey>("places");
+  const [hazardLayers, setHazardLayers] = useState<Set<HazardKey>>(new Set());
 
-  const allPlaces = data?.places ?? [];
+  const allPlaces = places.data?.places ?? [];
   const visiblePlaces = useMemo(
     () =>
       activeCategories.size === 0
@@ -32,23 +47,14 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     [allPlaces, activeCategories],
   );
 
-  const toggleCategory = useCallback((key: CategoryKey) => {
-    setSelectedId(null);
-    setActiveCategories((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }, []);
-
   const runSearch = useCallback(
     (center: LatLng) => {
       setSearchCenter(center);
       setSelectedId(null);
-      void search(center, RADIUS_M);
+      void places.search(center, RADIUS_M);
+      void facts.load(center);
     },
-    [search],
+    [places.search, facts.load],
   );
 
   // 起動時: 現在地を取得してそこを検索。取れなければ東京駅を表示だけする
@@ -71,11 +77,32 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     if (pos) runSearch(pos);
   };
 
+  const toggleCategory = useCallback((key: CategoryKey) => {
+    setSelectedId(null);
+    setActiveCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const toggleHazard = useCallback((key: HazardKey) => {
+    setHazardLayers((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
   const moved = useMemo(() => {
     if (!mapCenter) return false;
     if (!searchCenter) return true;
     return distanceMeters(mapCenter, searchCenter) > MOVED_THRESHOLD_M;
   }, [mapCenter, searchCenter]);
+
+  const loading = places.loading || facts.loading;
 
   if (!initialCenter) {
     return (
@@ -97,13 +124,15 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           selectedId={selectedId}
           onSelect={setSelectedId}
           onCameraChanged={setMapCenter}
-        />
+        >
+          <HazardOverlay enabled={hazardLayers} />
+        </MapView>
 
-        {/* 地図上のオーバーレイ UI */}
+        {/* 地図上のオーバーレイ UI（上部） */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 shadow backdrop-blur">
             <span className="text-sm font-bold tracking-tight text-gray-900">On-siteNav</span>
-            <span className="text-xs text-gray-500">周辺施設ファクト</span>
+            <span className="text-xs text-gray-500">現地ファクト</span>
           </div>
           {moved && mapCenter && !loading && (
             <button
@@ -116,7 +145,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           )}
           {loading && (
             <span className="pointer-events-auto rounded-full bg-white/95 px-4 py-2 text-sm text-gray-600 shadow">
-              周辺施設を検索中…
+              情報を取得中…
             </span>
           )}
           {geo.status === "denied" && (
@@ -126,27 +155,58 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           )}
         </div>
 
+        {/* 下部: レイヤー切替 + 現在地ボタン + ボトムシート */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col">
-          <button
-            type="button"
-            onClick={handleLocate}
-            disabled={geo.status === "locating"}
-            aria-label="現在地へ移動"
-            className="pointer-events-auto mr-3 mb-3 flex h-12 w-12 self-end items-center justify-center rounded-full bg-white text-xl shadow-lg active:scale-95 disabled:opacity-60"
+          <div className="mr-3 mb-3 flex items-end justify-end gap-2">
+            <LayerMenu enabled={hazardLayers} onToggle={toggleHazard} />
+            <button
+              type="button"
+              onClick={handleLocate}
+              disabled={geo.status === "locating"}
+              aria-label="現在地へ移動"
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl shadow-lg active:scale-95 disabled:opacity-60"
+            >
+              {geo.status === "locating" ? "…" : "◎"}
+            </button>
+          </div>
+          <BottomSheet
+            tabs={TABS}
+            activeTab={tab}
+            onTabChange={setTab}
+            meta={
+              tab === "places"
+                ? places.loading
+                  ? "検索中…"
+                  : `半径${formatDistance(RADIUS_M)}・${allPlaces.length}件`
+                : facts.loading
+                  ? "取得中…"
+                  : searchCenter
+                    ? `${searchCenter.lat.toFixed(4)}, ${searchCenter.lng.toFixed(4)}`
+                    : undefined
+            }
           >
-            {geo.status === "locating" ? "…" : "◎"}
-          </button>
-          <PlacePanel
-            places={allPlaces}
-            radiusM={RADIUS_M}
-            loading={loading}
-            error={error}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            active={activeCategories}
-            onToggleCategory={toggleCategory}
-            onResetCategory={() => setActiveCategories(new Set())}
-          />
+            {tab === "places" ? (
+              <PlaceList
+                places={allPlaces}
+                loading={places.loading}
+                error={places.error}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+                active={activeCategories}
+                onToggleCategory={toggleCategory}
+                onResetCategory={() => setActiveCategories(new Set())}
+              />
+            ) : (
+              <FactsPanel
+                facts={facts.data}
+                loading={facts.loading}
+                error={facts.error}
+                places={allPlaces}
+                enabledHazards={hazardLayers}
+                onToggleHazard={toggleHazard}
+              />
+            )}
+          </BottomSheet>
         </div>
       </div>
     </APIProvider>

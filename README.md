@@ -25,6 +25,7 @@ npm run dev
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | ブラウザ側の地図表示 | 公開されるキー。**HTTP リファラー制限**（`on-sitenav.vercel.app/*`, `localhost:3001`）を推奨 |
 | `GOOGLE_MAPS_API_KEY` | サーバー側の Places 検索 | 非公開。**API 制限で Places API (New) のみ**を推奨 |
 | `NEXT_PUBLIC_GOOGLE_MAP_ID` | 任意。Cloud Console の Map ID | 未設定時は `DEMO_MAP_ID` |
+| `REINFOLIB_API_KEY` | 任意。国交省「不動産情報ライブラリ」API | 用途地域・学区・人口に必要。[利用申請](https://www.reinfolib.mlit.go.jp/api/request/)（無料） |
 
 同じキーを両方に使っても動きますが、本番では用途別に2つに分けるのが安全です。
 
@@ -32,6 +33,21 @@ npm run dev
 
 - Maps JavaScript API
 - Places API (New)
+
+## 表示できる情報とデータ元
+
+| 情報 | データ元 | キー |
+| --- | --- | --- |
+| 周辺施設（駅・バス停・スーパー・病院・学校…）と距離・徒歩分数 | Google Places API (New) | Google |
+| 洪水・内水・高潮・津波・土砂災害の該当判定と地図重ね表示 | 国土地理院「重ねるハザードマップ」タイル | 不要 |
+| 地震の揺れやすさ（30年確率・表層地盤増幅率・微地形） | 防災科研 J-SHIS API | 不要 |
+| 用途地域・建蔽率・容積率・防火地域・高さ制限の目安 | 不動産情報ライブラリ XKT002 / XKT014 | REINFOLIB |
+| 小学校区・中学校区 | 不動産情報ライブラリ XKT004 / XKT005 | REINFOLIB |
+| 人口（2020/2030/2050 推計・増減率） | 不動産情報ライブラリ XKT013（250mメッシュ） | REINFOLIB |
+| 駅・バス停の時刻表・始発終電 | 公開 API が無いため Google マップへリンク | — |
+| 犯罪発生マップ | 都道府県警の Web 地図へリンク | — |
+
+ハザード判定は該当ズーム 16 のタイル画像の地点ピクセル色を凡例色と照合して行う（サーバー側 [src/lib/server/hazard.ts](src/lib/server/hazard.ts)）。目安であり、正式な区域は各自治体のハザードマップで確認すること。
 
 ## 構成
 
@@ -41,19 +57,26 @@ src/
 │   ├── layout.tsx            # ルートレイアウト（viewport 設定含む）
 │   ├── page.tsx              # キー未設定時の案内 / OnSiteNav を表示
 │   ├── globals.css
-│   └── api/places/route.ts   # Places API (New) 中継。入力検証・グループ並列検索・10分キャッシュ
+│   └── api/
+│       ├── places/route.ts   # Places API (New) 中継。入力検証・グループ並列検索・10分キャッシュ
+│       └── facts/route.ts    # 地点情報（ハザード・地震・用途地域・学区・人口）を並列取得
 ├── components/
-│   ├── OnSiteNav.tsx         # 画面全体の状態管理（現在地・検索中心・選択中の施設）
+│   ├── OnSiteNav.tsx         # 画面全体の状態管理
 │   ├── MapView.tsx           # 地図・ピン・検索範囲の円・現在地マーカー
-│   ├── PlacePanel.tsx        # 画面下部のボトムシート（カテゴリ別一覧）
-│   └── CategoryFilter.tsx    # カテゴリ絞り込みチップ
+│   ├── HazardOverlay.tsx     # ハザードタイルを地図に重ねる
+│   ├── LayerMenu.tsx         # レイヤー ON/OFF メニュー
+│   ├── BottomSheet.tsx       # 下部シート（スワイプ伸縮・タブ）
+│   ├── PlaceList.tsx         # 周辺施設タブ（カテゴリ別一覧・時刻表リンク）
+│   ├── FactsPanel.tsx        # 土地・災害タブ
+│   └── CategoryFilter.tsx
 ├── hooks/
-│   ├── useGeolocation.ts
-│   └── usePlaces.ts
+│   ├── useGeolocation.ts / usePlaces.ts / useFacts.ts
 └── lib/
     ├── categories.ts         # カテゴリ定義（表示順・色・Google types の対応）
-    ├── geo.ts                # 距離計算・徒歩分数・表示フォーマット
-    └── types.ts
+    ├── hazard-layers.ts      # ハザードレイヤー定義（タイル URL・色）
+    ├── geo.ts / tile.ts      # 距離計算・タイル座標計算
+    ├── types.ts / facts-types.ts
+    └── server/               # サーバー専用: hazard.ts（タイル色判定）, jshis.ts, reinfolib.ts
 ```
 
 ## 動作の流れ

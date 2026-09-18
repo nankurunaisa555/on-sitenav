@@ -1,0 +1,74 @@
+import type { HazardKey } from "./facts-types";
+
+/**
+ * 国土地理院「重ねるハザードマップ」配信タイル。
+ * 地図オーバーレイ（クライアント）と地点判定（サーバー）の両方で使う。
+ * https://disaportal.gsi.go.jp/hazardmap/copyright/opendata.html
+ */
+export type HazardLayerDef = {
+  key: HazardKey;
+  label: string;
+  short: string;
+  /** 複数テンプレートがある場合はいずれかに色があれば該当とみなす */
+  tiles: readonly string[];
+  maxZoom: number;
+  color: string;
+};
+
+const GSI = "https://disaportaldata.gsi.go.jp/raster";
+
+export const HAZARD_LAYERS: readonly HazardLayerDef[] = [
+  {
+    key: "flood",
+    label: "洪水浸水想定区域（想定最大規模）",
+    short: "洪水",
+    tiles: [`${GSI}/01_flood_l2_shinsuishin_data/{z}/{x}/{y}.png`],
+    maxZoom: 17,
+    color: "#2563eb",
+  },
+  {
+    key: "naisui",
+    label: "内水浸水想定区域",
+    short: "内水",
+    tiles: [`${GSI}/02_naisui_data/{z}/{x}/{y}.png`],
+    maxZoom: 17,
+    color: "#0891b2",
+  },
+  {
+    key: "hightide",
+    label: "高潮浸水想定区域",
+    short: "高潮",
+    tiles: [`${GSI}/03_hightide_l2_shinsuishin_data/{z}/{x}/{y}.png`],
+    maxZoom: 17,
+    color: "#7c3aed",
+  },
+  {
+    key: "tsunami",
+    label: "津波浸水想定",
+    short: "津波",
+    tiles: [`${GSI}/04_tsunami_newlegend_data/{z}/{x}/{y}.png`],
+    maxZoom: 17,
+    color: "#db2777",
+  },
+  {
+    key: "sediment",
+    label: "土砂災害警戒区域（土石流・急傾斜地・地すべり）",
+    short: "土砂",
+    tiles: [
+      `${GSI}/05_dosekiryukeikaikuiki/{z}/{x}/{y}.png`,
+      `${GSI}/05_kyukeishakeikaikuiki/{z}/{x}/{y}.png`,
+      `${GSI}/05_jisuberikeikaikuiki/{z}/{x}/{y}.png`,
+    ],
+    maxZoom: 17,
+    color: "#b45309",
+  },
+] as const;
+
+export const HAZARD_LAYER_MAP: ReadonlyMap<HazardKey, HazardLayerDef> = new Map(
+  HAZARD_LAYERS.map((l) => [l.key, l]),
+);
+
+/** 重ねるハザードマップの該当地点を開く URL */
+export function disaportalUrl(lat: number, lng: number): string {
+  return `https://disaportal.gsi.go.jp/maps/?ll=${lat.toFixed(6)},${lng.toFixed(6)}&z=16&base=pale&vs=c1j0l0u0t0h0z0`;
+}

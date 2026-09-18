@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import {
   AdvancedMarker,
   Map,
@@ -21,6 +21,8 @@ type Props = {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   onCameraChanged: (center: LatLng) => void;
+  /** 地図コンテキスト内に置く追加要素（オーバーレイなど） */
+  children?: ReactNode;
 };
 
 export default function MapView({
@@ -32,6 +34,7 @@ export default function MapView({
   selectedId,
   onSelect,
   onCameraChanged,
+  children,
 }: Props) {
   return (
     <Map
@@ -49,6 +52,7 @@ export default function MapView({
       <SearchRadius center={searchCenter} radiusM={radiusM} />
       <PanTo target={places.find((p) => p.id === selectedId)?.location ?? null} />
       <PanTo target={searchCenter} />
+      {children}
 
       {userLocation && (
         <AdvancedMarker position={userLocation} zIndex={1000} title="現在地">
