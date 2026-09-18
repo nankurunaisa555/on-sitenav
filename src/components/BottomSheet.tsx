@@ -93,10 +93,7 @@ export default function BottomSheet<K extends string>({
                 type="button"
                 aria-selected={t.key === activeTab}
                 onPointerDown={(e) => e.stopPropagation()}
-                onClick={() => {
-                  onTabChange(t.key);
-                  if (!expanded) setExpanded(true);
-                }}
+                onClick={() => onTabChange(t.key)}
                 className={`whitespace-nowrap rounded-md px-2.5 py-1 text-sm font-semibold transition ${
                   t.key === activeTab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                 }`}
