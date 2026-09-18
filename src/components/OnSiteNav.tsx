@@ -348,7 +348,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           <div className="mr-3 mb-2 flex justify-end">
             <ZoomButtons />
           </div>
-          <div className="mr-3 mb-3 flex items-end justify-end gap-2">
+          <div className="relative mr-3 mb-3 flex items-end justify-end gap-2">
             <button
               type="button"
               onClick={() => {

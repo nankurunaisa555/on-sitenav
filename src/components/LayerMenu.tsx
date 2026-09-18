@@ -28,7 +28,7 @@ export default function LayerMenu({
   const activeCount = enabled.size + (crimeEnabled ? 1 : 0);
 
   return (
-    <div className="pointer-events-auto relative">
+    <div className="pointer-events-auto">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -46,41 +46,37 @@ export default function LayerMenu({
       </button>
 
       {open && (
-        <div className="absolute right-0 bottom-14 w-72 rounded-xl bg-white p-2 shadow-xl">
-          <p className="px-2 pt-1 pb-2 text-xs font-semibold text-gray-500">
-            ハザードマップを重ねる
-          </p>
+        <div className="absolute right-0 bottom-14 w-64 max-w-[calc(100vw-1.5rem)] rounded-xl bg-white p-1.5 text-xs shadow-xl">
+          <p className="px-2 pt-1 pb-1 text-[11px] font-semibold text-gray-500">ハザードマップを重ねる</p>
           <ul>
             {HAZARD_LAYERS.map((layer) => {
               const on = enabled.has(layer.key);
               return (
                 <li key={layer.key}>
-                  <label className="flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 active:bg-gray-50">
+                  <label className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 active:bg-gray-50">
                     <input
                       type="checkbox"
                       checked={on}
                       onChange={() => onToggle(layer.key)}
-                      className="h-4 w-4 accent-gray-900"
+                      className="h-3.5 w-3.5 accent-gray-900"
                     />
                     <span
-                      className="h-3 w-3 shrink-0 rounded-sm"
+                      className="h-2.5 w-2.5 shrink-0 rounded-sm"
                       style={{ backgroundColor: layer.color, opacity: on ? 1 : 0.35 }}
                     />
-                    <span className="min-w-0 flex-1 text-sm text-gray-900">{layer.label}</span>
+                    <span className="min-w-0 flex-1 leading-tight text-gray-900">{layer.label}</span>
                   </label>
                 </li>
               );
             })}
           </ul>
-          <p className="px-2 pt-1 pb-1 text-[11px] leading-snug text-gray-400">
-            出典: 国土地理院「重ねるハザードマップ」
-          </p>
+          <p className="px-2 pt-0.5 pb-0.5 text-[10px] leading-snug text-gray-400">出典: 国土地理院「重ねるハザードマップ」</p>
 
-          <p className="mt-1 border-t border-gray-100 px-2 pt-2 pb-1 text-xs font-semibold text-gray-500">
+          <p className="mt-1 border-t border-gray-100 px-2 pt-1.5 pb-0.5 text-[11px] font-semibold text-gray-500">
             犯罪発生（窃盗7手口・町丁目別）
           </p>
           <label
-            className={`flex items-center gap-3 rounded-lg px-2 py-2 ${
+            className={`flex items-center gap-2 rounded-md px-2 py-1 ${
               crimeAvailable ? "cursor-pointer active:bg-gray-50" : "opacity-50"
             }`}
           >
@@ -89,22 +85,22 @@ export default function LayerMenu({
               checked={crimeEnabled}
               disabled={!crimeAvailable}
               onChange={onToggleCrime}
-              className="h-4 w-4 accent-gray-900"
+              className="h-3.5 w-3.5 accent-gray-900"
             />
-            <span className="h-3 w-3 shrink-0 rounded-full bg-red-600" style={{ opacity: crimeEnabled ? 1 : 0.35 }} />
-            <span className="min-w-0 flex-1 text-sm text-gray-900">{crimeLabel}</span>
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-600" style={{ opacity: crimeEnabled ? 1 : 0.35 }} />
+            <span className="min-w-0 flex-1 leading-tight text-gray-900">{crimeLabel}</span>
           </label>
           {crimeEnabled && (
-            <div className="flex flex-wrap gap-x-3 gap-y-1 px-2 pb-1">
+            <div className="flex flex-wrap gap-x-2 gap-y-0.5 px-2 pb-1">
               {CRIME_LEGEND.map((l) => (
-                <span key={l.label} className="flex items-center gap-1 text-[11px] text-gray-600">
-                  <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: l.color }} />
+                <span key={l.label} className="flex items-center gap-1 text-[10px] text-gray-600">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: l.color }} />
                   {l.label}
                 </span>
               ))}
             </div>
           )}
-          <p className="px-2 pt-1 pb-1 text-[11px] leading-snug text-gray-400">
+          <p className="px-2 pt-0.5 pb-0.5 text-[10px] leading-snug text-gray-400">
             {crimeAvailable
               ? "町丁目の代表点に年間件数を集約。出典: 県警 犯罪オープンデータ／国交省 位置参照情報"
               : "この地域の犯罪オープンデータは未整備です（現在は埼玉県のみ）"}

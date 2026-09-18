@@ -20,7 +20,7 @@ const GSI = "https://disaportaldata.gsi.go.jp/raster";
 export const HAZARD_LAYERS: readonly HazardLayerDef[] = [
   {
     key: "flood",
-    label: "洪水浸水想定区域（想定最大規模）",
+    label: "洪水浸水想定（想定最大規模）",
     short: "洪水",
     tiles: [`${GSI}/01_flood_l2_shinsuishin_data/{z}/{x}/{y}.png`],
     maxZoom: 17,
@@ -52,7 +52,7 @@ export const HAZARD_LAYERS: readonly HazardLayerDef[] = [
   },
   {
     key: "sediment",
-    label: "土砂災害警戒区域（土石流・急傾斜地・地すべり）",
+    label: "土砂災害警戒区域（土石流・急傾斜・地すべり）",
     short: "土砂",
     tiles: [
       `${GSI}/05_dosekiryukeikaikuiki/{z}/{x}/{y}.png`,
