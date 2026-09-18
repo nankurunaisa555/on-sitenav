@@ -73,6 +73,85 @@ export type CrimeSection = {
   sourceUrl: string | null;
 };
 
+export type LandPricePoint = {
+  id: string;
+  /** 標準地番号（例: さいたま南-2） */
+  label: string;
+  location: { lat: number; lng: number };
+  distanceM: number;
+  address: string;
+  pricePerSqm: number;
+  /** 前年比（%） */
+  changeRate: number | null;
+  useCategory: string | null;
+  zoning: string | null;
+  nearestStation: string | null;
+  stationDistance: string | null;
+  surroundings: string | null;
+  kind: "地価公示" | "地価調査";
+  cityCode: string | null;
+};
+
+export type LandPriceSection = {
+  status: SectionStatus;
+  year: number;
+  points: LandPricePoint[];
+};
+
+export type LiquefactionSection = {
+  status: SectionStatus;
+  /** 「やや液状化しやすい」など */
+  tendency: string | null;
+  /** 1〜5（大きいほど液状化しやすい） */
+  level: number | null;
+  landform: string | null;
+};
+
+export type Shelter = {
+  id: string;
+  name: string;
+  address: string | null;
+  location: { lat: number; lng: number };
+  distanceM: number;
+  /** 対応する災害種別（洪水・地震・土砂 …） */
+  hazards: string[];
+};
+
+export type ShelterSection = {
+  status: SectionStatus;
+  shelters: Shelter[];
+};
+
+export type ElevationSection = {
+  status: SectionStatus;
+  elevationM: number | null;
+  /** 標高データの種別（5mレーザー など） */
+  source: string | null;
+};
+
+/** /api/trades */
+export type Trade = {
+  category: string;
+  type: string;
+  period: string;
+  price: number;
+  area: number | null;
+  totalFloorArea: number | null;
+  buildingYear: string | null;
+  structure: string | null;
+  floorPlan: string | null;
+  zoning: string | null;
+  purpose: string | null;
+};
+
+export type TradesResponse = {
+  city: string;
+  town: string;
+  years: [number, number];
+  totalInTown: number;
+  trades: Trade[];
+};
+
 export type ZoningSection = {
   status: SectionStatus;
   useArea: string | null;
@@ -121,6 +200,10 @@ export type FactsResponse = {
   quake: QuakeSection;
   landform: LandformSection;
   crime: CrimeSection;
+  elevation: ElevationSection;
+  liquefaction: LiquefactionSection;
+  shelters: ShelterSection;
+  landPrice: LandPriceSection;
   zoning: ZoningSection;
   school: SchoolSection;
   population: PopulationSection;

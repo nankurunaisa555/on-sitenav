@@ -5,7 +5,9 @@ import { AdvancedMarker, useMap } from "@vis.gl/react-google-maps";
 import type { RouteState, RouteTarget } from "@/hooks/useRoutes";
 
 function targetEmoji(target: RouteTarget): string {
-  return target.startsWith("station") ? "🚉" : "🏫";
+  if (target.startsWith("station")) return "🚉";
+  if (target.startsWith("shelter")) return "🏃";
+  return "🏫";
 }
 
 /** 徒歩ルートの折れ線と目的地マーカーを地図に描く */

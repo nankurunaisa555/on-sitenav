@@ -9,12 +9,14 @@ import HazardOverlay from "./HazardOverlay";
 import LayerMenu from "./LayerMenu";
 import MapView from "./MapView";
 import PlaceList from "./PlaceList";
+import PricePanel from "./PricePanel";
 import RouteOverlay from "./RouteOverlay";
 import ZoomButtons from "./ZoomButtons";
 import { useFacts } from "@/hooks/useFacts";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePlaces } from "@/hooks/usePlaces";
 import { useRoutes, type RouteTarget } from "@/hooks/useRoutes";
+import { useTrades } from "@/hooks/useTrades";
 import type { HazardKey } from "@/lib/facts-types";
 import { DEFAULT_CENTER, distanceMeters, formatDistance } from "@/lib/geo";
 import { CRIME_PREFS, guessPrefCode } from "@/lib/crime";
@@ -24,11 +26,12 @@ const RADIUS_M = 800;
 /** 検索中心からこれ以上動いたら「このエリアを検索」を出す */
 const MOVED_THRESHOLD_M = 150;
 
-type TabKey = "places" | "land" | "community";
+type TabKey = "places" | "land" | "community" | "price";
 const TABS: readonly SheetTab<TabKey>[] = [
   { key: "places", label: "周辺施設" },
   { key: "land", label: "土地・災害" },
   { key: "community", label: "学区・人口" },
+  { key: "price", label: "価格" },
 ];
 
 function readLatLngFromUrl(): LatLng | null {
@@ -52,6 +55,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const places = usePlaces();
   const facts = useFacts();
   const routing = useRoutes();
+  const trades = useTrades();
 
   const [initialCenter, setInitialCenter] = useState<LatLng | null>(null);
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
@@ -94,11 +98,12 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       setSelectedId(null);
       setPickedPoint(null);
       routing.clear(); // 出発点が変わるのでルートは消す
+      trades.reset();
       setShowPins(true);
       void places.search(center, RADIUS_M);
       void facts.load(center);
     },
-    [places.search, facts.load, routing.clear],
+    [places.search, facts.load, routing.clear, trades.reset],
   );
 
   // 起動時: URL に ?lat=&lng= があればその地点を基準に（共有リンク用）。
@@ -131,6 +136,14 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     url.searchParams.set("lng", searchCenter.lng.toFixed(6));
     window.history.replaceState(null, "", url);
   }, [searchCenter]);
+
+  // 周辺施設が取れたら、いちばん近い施設の住所から町名を決めて取引事例を引く
+  useEffect(() => {
+    if (!places.data) return;
+    const withAddress = places.data.places.find((p) => /[都道府県]/.test(p.address));
+    void trades.load(withAddress?.address ?? null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [places.data]);
 
   const handleLocate = async () => {
     const pos = await geo.locate();
@@ -322,7 +335,16 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                     : undefined
             }
           >
-            {tab === "places" ? (
+            {tab === "price" ? (
+              <PricePanel
+                landPrice={facts.data?.landPrice ?? null}
+                factsLoading={facts.loading}
+                trades={trades.data}
+                tradesLoading={trades.loading}
+                tradesError={trades.error}
+                hasSearch={searchCenter !== null}
+              />
+            ) : tab === "places" ? (
               <PlaceList
                 places={allPlaces}
                 loading={places.loading}
@@ -335,7 +357,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               />
             ) : (
               <FactsPanel
-                group={tab}
+                group={tab === "land" ? "land" : "community"}
                 facts={facts.data}
                 loading={facts.loading}
                 error={facts.error}

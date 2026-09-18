@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import type {
   CrimeSection,
+  ElevationSection,
   FactsResponse,
+  LandPriceSection,
+  LiquefactionSection,
+  ShelterSection,
   HazardSection,
   LandformSection,
   PopulationSection,
@@ -15,6 +19,8 @@ import { sampleHazards } from "@/lib/server/hazard";
 import { fetchQuake, jshisUrl } from "@/lib/server/jshis";
 import { fetchLandform, gsiMapUrl } from "@/lib/server/landform";
 import { fetchCrime } from "@/lib/server/crime";
+import { fetchElevation } from "@/lib/server/elevation";
+import { fetchLandPrices, fetchLiquefaction, fetchShelters } from "@/lib/server/reinfolib-extra";
 import { fetchPopulation, fetchSchools, fetchZoning, hasReinfolibKey } from "@/lib/server/reinfolib";
 import type { LatLng } from "@/lib/types";
 
@@ -66,6 +72,19 @@ const emptyCrime = (status: SectionStatus): CrimeSection => ({
   around500m: null,
   sourceUrl: null,
 });
+const emptyElevation = (status: SectionStatus): ElevationSection => ({ status, elevationM: null, source: null });
+const emptyLiquefaction = (status: SectionStatus): LiquefactionSection => ({
+  status,
+  tendency: null,
+  level: null,
+  landform: null,
+});
+const emptyShelters = (status: SectionStatus): ShelterSection => ({ status, shelters: [] });
+const emptyLandPrice = (status: SectionStatus): LandPriceSection => ({
+  status,
+  year: new Date().getFullYear(),
+  points: [],
+});
 const emptyZoning = (status: SectionStatus): ZoningSection => ({
   status,
   useArea: null,
@@ -115,7 +134,8 @@ export async function GET(request: Request) {
 
   const reinfo = hasReinfolibKey();
 
-  const [hazard, quake, landform, crime, zoning, school, population] = await Promise.all([
+  const [hazard, quake, landform, crime, elevation, liquefaction, shelters, landPrice, zoning, school, population] =
+    await Promise.all([
     section<HazardSection>(
       "hazard",
       async () => ({ status: "ok", items: await sampleHazards(center), sourceUrl: disaportalUrl(lat, lng) }),
@@ -124,6 +144,10 @@ export async function GET(request: Request) {
     section("quake", () => fetchQuake(center), (s) => emptyQuake(center, s)),
     section("landform", () => fetchLandform(center), (s) => emptyLandform(center, s)),
     section("crime", () => fetchCrime(center), emptyCrime),
+    section("elevation", () => fetchElevation(center), emptyElevation),
+    reinfo ? section("liquefaction", () => fetchLiquefaction(center), emptyLiquefaction) : emptyLiquefaction("unavailable"),
+    reinfo ? section("shelters", () => fetchShelters(center), emptyShelters) : emptyShelters("unavailable"),
+    reinfo ? section("landPrice", () => fetchLandPrices(center), emptyLandPrice) : emptyLandPrice("unavailable"),
     reinfo ? section("zoning", () => fetchZoning(center), emptyZoning) : emptyZoning("unavailable"),
     reinfo ? section("school", () => fetchSchools(center), emptySchool) : emptySchool("unavailable"),
     reinfo ? section("population", () => fetchPopulation(center), emptyPopulation) : emptyPopulation("unavailable"),
@@ -134,6 +158,10 @@ export async function GET(request: Request) {
     quake,
     landform,
     crime,
+    elevation,
+    liquefaction,
+    shelters,
+    landPrice,
     zoning,
     school,
     population,

@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import type { RouteResponse } from "@/lib/facts-types";
 import type { LatLng } from "@/lib/types";
 
-export type RouteTarget = `station-${number}` | "elementary" | "juniorHigh";
+export type RouteTarget = `station-${number}` | `shelter-${number}` | "elementary" | "juniorHigh";
 
 export type RouteState = {
   target: RouteTarget;
@@ -20,10 +20,13 @@ export type RouteState = {
 
 const STATION_COLORS = ["#2563eb", "#0891b2"];
 
+const SHELTER_COLORS = ["#16a34a", "#15803d", "#166534"];
+
 export function routeColor(target: RouteTarget): string {
   if (target === "elementary") return "#7c3aed";
   if (target === "juniorHigh") return "#a855f7";
   const i = Number(target.split("-")[1] ?? 0);
+  if (target.startsWith("shelter")) return SHELTER_COLORS[i % SHELTER_COLORS.length] ?? "#16a34a";
   return STATION_COLORS[i % STATION_COLORS.length] ?? "#2563eb";
 }
 

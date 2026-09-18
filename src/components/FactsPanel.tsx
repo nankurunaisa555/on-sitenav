@@ -61,6 +61,20 @@ export default function FactsPanel({
         <div className={`space-y-4 pb-4 ${loading ? "opacity-60" : ""}`}>
           {/* 災害リスク */}
           <Section title="災害リスク（この地点）" status={facts.hazard.status} source={facts.hazard.sourceUrl} sourceLabel="重ねるハザードマップ">
+            <Row label="標高">
+              {facts.elevation.elevationM !== null ? (
+                <>
+                  <Strong>{facts.elevation.elevationM.toFixed(1)}m</Strong>
+                  {facts.elevation.source && (
+                    <span className="ml-1 text-xs text-gray-500">
+                      （{facts.elevation.source.replace(/[（）()]/g, "")}）
+                    </span>
+                  )}
+                </>
+              ) : (
+                <Na />
+              )}
+            </Row>
             <ul className="divide-y divide-gray-100">
               {facts.hazard.items.map((h) => {
                 const def = HAZARD_LAYER_MAP.get(h.key);
@@ -115,6 +129,51 @@ export default function FactsPanel({
               )}
             </Row>
             <Row label="微地形区分">{facts.quake.landform ?? <Na />}</Row>
+            {facts.liquefaction.status === "ok" && (
+              <Row label="液状化傾向">
+                {facts.liquefaction.tendency ? (
+                  <>
+                    <Strong>{facts.liquefaction.tendency}</Strong>
+                    {facts.liquefaction.landform && (
+                      <span className="ml-1 text-xs text-gray-500">（{facts.liquefaction.landform}）</span>
+                    )}
+                  </>
+                ) : (
+                  <span className="text-sm text-gray-400">対象外（データなし）</span>
+                )}
+              </Row>
+            )}
+          </Section>
+
+          {/* 避難場所 */}
+          <Section title="指定緊急避難場所（近い順）" status={facts.shelters.status}>
+            {facts.shelters.shelters.length === 0 && (
+              <p className="py-2 text-sm text-gray-400">近くに避難場所のデータがありません</p>
+            )}
+            {facts.shelters.shelters.map((s, i) => (
+              <div key={s.id} className={i > 0 ? "mt-1 border-t border-gray-100 pt-1" : ""}>
+                <Row label={`避難場所 ${i + 1}`}>
+                  <span className="font-semibold">{s.name}</span>
+                  <span className="ml-2 text-gray-600">
+                    {formatDistance(s.distanceM)}・徒歩{walkMinutes(s.distanceM)}分
+                  </span>
+                  {s.hazards.length > 0 && (
+                    <span className="block text-xs text-gray-500">対応: {s.hazards.join("・")}</span>
+                  )}
+                </Row>
+                <RouteButton
+                  target={`shelter-${i}`}
+                  label={s.name}
+                  destination={s.location}
+                  origin={origin}
+                  routes={routes}
+                  onToggleRoute={onToggleRoute}
+                />
+              </div>
+            ))}
+            <p className="mt-1 text-[11px] leading-snug text-gray-400">
+              出典: 国土地理院「指定緊急避難場所データ」。災害種別ごとに指定が異なるため「対応」を確認してください。
+            </p>
           </Section>
 
           {/* 地形分類 */}

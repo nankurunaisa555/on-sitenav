@@ -97,7 +97,7 @@ export default function BottomSheet<K extends string>({
                   onTabChange(t.key);
                   if (!expanded) setExpanded(true);
                 }}
-                className={`whitespace-nowrap rounded-md px-3 py-1 text-sm font-semibold transition ${
+                className={`whitespace-nowrap rounded-md px-2.5 py-1 text-sm font-semibold transition ${
                   t.key === activeTab ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                 }`}
               >
@@ -105,7 +105,7 @@ export default function BottomSheet<K extends string>({
               </button>
             ))}
           </div>
-          {meta && <p className="min-w-0 truncate text-xs text-gray-500">{meta}</p>}
+          {meta && <p className="hidden min-w-0 truncate text-xs text-gray-500 min-[430px]:block">{meta}</p>}
         </header>
       </div>
       {children}
