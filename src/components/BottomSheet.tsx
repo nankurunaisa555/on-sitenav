@@ -84,8 +84,8 @@ export default function BottomSheet<K extends string>({
         <div className="flex w-full flex-col items-center pt-2 pb-1">
           <span className="h-1.5 w-10 rounded-full bg-gray-300" />
         </div>
-        <header className="flex items-center justify-between gap-3 px-4 pb-2">
-          <div role="tablist" className="flex shrink-0 gap-1 rounded-lg bg-gray-100 p-0.5">
+        <header className="flex items-start justify-between gap-3 px-4 pb-2">
+          <div role="tablist" className="flex min-w-0 flex-wrap gap-1 rounded-lg bg-gray-100 p-0.5">
             {tabs.map((t) => (
               <button
                 key={t.key}
@@ -105,7 +105,7 @@ export default function BottomSheet<K extends string>({
               </button>
             ))}
           </div>
-          {meta && <p className="hidden min-w-0 truncate text-xs text-gray-500 min-[430px]:block">{meta}</p>}
+          {meta && <p className="hidden min-w-0 shrink-0 pt-1.5 text-xs text-gray-500 min-[430px]:block">{meta}</p>}
         </header>
       </div>
       {children}

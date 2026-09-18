@@ -41,6 +41,12 @@ export const CATEGORY_MAP: ReadonlyMap<CategoryKey, CategoryDef> = new Map(
 
 export const CATEGORY_KEYS: readonly CategoryKey[] = CATEGORIES.map((c) => c.key);
 
+/** 「周辺施設」タブに出すカテゴリ。駅・バス停は交通タブ、嫌悪施設は専用タブへ */
+export const LIST_CATEGORIES: readonly CategoryDef[] = CATEGORIES.filter(
+  (c) => c.key !== "station" && c.key !== "bus" && c.key !== "nimby",
+);
+export const LIST_CATEGORY_KEYS: readonly CategoryKey[] = LIST_CATEGORIES.map((c) => c.key);
+
 /** Google の types 配列を、当アプリのカテゴリに割り当てる。優先順は CATEGORIES の並び。 */
 export function classify(types: readonly string[]): CategoryKey | null {
   for (const cat of CATEGORIES) {

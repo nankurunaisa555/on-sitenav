@@ -10,6 +10,7 @@ import LayerMenu from "./LayerMenu";
 import MapView from "./MapView";
 import PlaceList from "./PlaceList";
 import PricePanel from "./PricePanel";
+import NimbyPanel from "./NimbyPanel";
 import RouteOverlay from "./RouteOverlay";
 import ZoomButtons from "./ZoomButtons";
 import { useFacts } from "@/hooks/useFacts";
@@ -21,19 +22,24 @@ import { useNimby } from "@/hooks/useNimby";
 import type { HazardKey } from "@/lib/facts-types";
 import { DEFAULT_CENTER, distanceMeters, formatDistance } from "@/lib/geo";
 import { CRIME_PREFS, guessPrefCode } from "@/lib/crime";
+import { LIST_CATEGORY_KEYS } from "@/lib/categories";
+import { NIMBY_KINDS, type NimbyKindKey } from "@/lib/nimby";
 import type { CategoryKey, LatLng } from "@/lib/types";
 
 const RADIUS_M = 800;
 /** 検索中心からこれ以上動いたら「このエリアを検索」を出す */
 const MOVED_THRESHOLD_M = 150;
 
-type TabKey = "places" | "land" | "community" | "price";
+type TabKey = "places" | "land" | "community" | "price" | "nimby";
 const TABS: readonly SheetTab<TabKey>[] = [
   { key: "places", label: "周辺施設" },
   { key: "land", label: "土地・災害" },
   { key: "community", label: "交通・学区・人口" },
   { key: "price", label: "価格" },
+  { key: "nimby", label: "嫌悪施設" },
 ];
+const ALL_LIST_CATEGORIES = new Set<CategoryKey>(LIST_CATEGORY_KEYS);
+const ALL_NIMBY_KINDS = new Set<NimbyKindKey>(NIMBY_KINDS.map((k) => k.key));
 
 function readLatLngFromUrl(): LatLng | null {
   if (typeof window === "undefined") return null;
@@ -63,7 +69,8 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const [mapCenter, setMapCenter] = useState<LatLng | null>(null);
   const [searchCenter, setSearchCenter] = useState<LatLng | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [activeCategories, setActiveCategories] = useState<Set<CategoryKey>>(new Set());
+  const [activeCategories, setActiveCategories] = useState<Set<CategoryKey>>(() => new Set(ALL_LIST_CATEGORIES));
+  const [activeKinds, setActiveKinds] = useState<Set<NimbyKindKey>>(() => new Set(ALL_NIMBY_KINDS));
   const [tab, setTab] = useState<TabKey>("places");
   const [hazardLayers, setHazardLayers] = useState<Set<HazardKey>>(new Set());
   /** 地図タップで選んだ、次の検索の基準候補 */
@@ -94,23 +101,31 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       distanceM: x.distanceM,
     }));
   }, [facts.data?.civic]);
-  const nimbyPlaces = useMemo(() => (nimby.enabled && nimby.data ? nimby.data.items : []), [nimby.enabled, nimby.data]);
-  const allPlaces = useMemo(
-    () => [...(places.data?.places ?? []), ...civicPlaces, ...nimbyPlaces].sort((a, b) => a.distanceM - b.distanceM),
-    [places.data?.places, civicPlaces, nimbyPlaces],
+  /** Places 由来の全件（駅・バス停含む）。交通タブの最寄り判定に使う */
+  const rawPlaces = places.data?.places ?? [];
+  /** 周辺施設タブの一覧対象（駅・バス停を除き、役所・図書館を足す） */
+  const listPlaces = useMemo(
+    () =>
+      [...rawPlaces.filter((p) => p.category !== "station" && p.category !== "bus"), ...civicPlaces].sort(
+        (a, b) => a.distanceM - b.distanceM,
+      ),
+    [rawPlaces, civicPlaces],
   );
+  const nimbyPlaces = useMemo(
+    () => (nimby.data ? nimby.data.items.filter((p) => activeKinds.has(p.sub.key as NimbyKindKey)) : []),
+    [nimby.data, activeKinds],
+  );
+  /** 地図のピン: ON のカテゴリ ＋ 最寄り駅（常時）＋ 嫌悪施設（取得済みなら） */
   const visiblePlaces = useMemo(() => {
-    const filtered =
-      activeCategories.size === 0
-        ? allPlaces
-        : allPlaces.filter((p) => activeCategories.has(p.category));
-    // 半径外の最寄り駅も地図には出す（一覧には出さない）
-    if (activeCategories.size === 0 || activeCategories.has("station")) {
-      const ids = new Set(filtered.map((p) => p.id));
-      return [...filtered, ...nearestStations.filter((s) => !ids.has(s.id))];
-    }
-    return filtered;
-  }, [allPlaces, nearestStations, activeCategories]);
+    const filtered = listPlaces.filter((p) => activeCategories.has(p.category));
+    const ids = new Set(filtered.map((p) => p.id));
+    const stations = [...rawPlaces.filter((p) => p.category === "station"), ...nearestStations].filter((s) => {
+      if (ids.has(s.id)) return false;
+      ids.add(s.id);
+      return true;
+    });
+    return [...filtered, ...stations, ...nimbyPlaces];
+  }, [listPlaces, rawPlaces, nearestStations, activeCategories, nimbyPlaces]);
 
   const runSearch = useCallback(
     (center: LatLng) => {
@@ -174,6 +189,16 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const toggleCategory = useCallback((key: CategoryKey) => {
     setSelectedId(null);
     setActiveCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  const toggleKind = useCallback((key: NimbyKindKey) => {
+    setSelectedId(null);
+    setActiveKinds((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
       else next.add(key);
@@ -348,7 +373,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               tab === "places"
                 ? places.loading
                   ? "検索中…"
-                  : `半径${formatDistance(RADIUS_M)}・${allPlaces.length}件${showPins ? "" : "（ピン非表示）"}`
+                  : `半径${formatDistance(RADIUS_M)}・${listPlaces.length}件${showPins ? "" : "（ピン非表示）"}`
                 : facts.loading
                   ? "取得中…"
                   : searchCenter
@@ -356,7 +381,23 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                     : undefined
             }
           >
-            {tab === "price" ? (
+            {tab === "nimby" ? (
+              <NimbyPanel
+                data={nimby.data}
+                loading={nimby.loading}
+                error={nimby.error}
+                hasSearch={searchCenter !== null}
+                onSearch={() => {
+                  if (searchCenter) void nimby.toggle(searchCenter);
+                }}
+                activeKinds={activeKinds}
+                onToggleKind={toggleKind}
+                onAllKinds={() => setActiveKinds(new Set(ALL_NIMBY_KINDS))}
+                onNoKinds={() => setActiveKinds(new Set())}
+                selectedId={selectedId}
+                onSelect={setSelectedId}
+              />
+            ) : tab === "price" ? (
               <PricePanel
                 landPrice={facts.data?.landPrice ?? null}
                 factsLoading={facts.loading}
@@ -367,23 +408,15 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               />
             ) : tab === "places" ? (
               <PlaceList
-                places={allPlaces}
+                places={listPlaces}
                 loading={places.loading}
                 error={places.error}
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 active={activeCategories}
                 onToggleCategory={toggleCategory}
-                onResetCategory={() => setActiveCategories(new Set())}
-                nimby={{
-                  loaded: nimby.data !== null,
-                  enabled: nimby.enabled,
-                  loading: nimby.loading,
-                  error: nimby.error,
-                  onClick: () => {
-                    if (searchCenter) void nimby.toggle(searchCenter);
-                  },
-                }}
+                onAllCategories={() => setActiveCategories(new Set(ALL_LIST_CATEGORIES))}
+                onNoCategories={() => setActiveCategories(new Set())}
               />
             ) : (
               <FactsPanel
@@ -391,7 +424,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                 facts={facts.data}
                 loading={facts.loading}
                 error={facts.error}
-                places={allPlaces}
+                places={rawPlaces}
                 nearestStations={nearestStations}
                 enabledHazards={hazardLayers}
                 onToggleHazard={toggleHazard}

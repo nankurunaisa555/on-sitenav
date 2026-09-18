@@ -92,9 +92,10 @@ src/
 │   ├── HazardOverlay.tsx     # ハザードタイルを地図に重ねる
 │   ├── LayerMenu.tsx         # レイヤー ON/OFF メニュー
 │   ├── BottomSheet.tsx       # 下部シート（スワイプ伸縮・タブ）
-│   ├── PlaceList.tsx         # 周辺施設タブ（カテゴリ別一覧・時刻表リンク）
+│   ├── PlaceList.tsx         # 周辺施設タブ（カテゴリ別一覧。駅・バス停は交通タブへ）
 │   ├── FactsPanel.tsx        # 土地・災害タブ / 学区・人口タブ（group で切替）
-│   ├── PricePanel.tsx        # 価格タブ（地価公示・取引事例）
+│   ├── PricePanel.tsx        # 価格タブ（地価公示・取引事例・家賃統計）
+│   ├── NimbyPanel.tsx        # 嫌悪施設タブ（オンデマンド探索・種別 ON/OFF）
 │   ├── RouteOverlay.tsx      # 徒歩ルートの折れ線と目的地ラベル
 │   ├── CrimeOverlay.tsx      # 犯罪発生（町丁目別件数）の円レイヤー
 │   └── CategoryFilter.tsx
