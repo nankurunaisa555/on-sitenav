@@ -24,6 +24,8 @@ type Props = {
   onPickPoint: (p: LatLng | null) => void;
   /** 基準点の移動モード。ON のときだけ地図タップで候補地点を置く */
   moveMode: boolean;
+  /** 施設の吹き出しから「ストリートビュー」を開く */
+  onStreetView: (p: LatLng, title: string) => void;
   radiusM: number;
   places: Place[];
   selectedId: string | null;
@@ -41,6 +43,7 @@ export default function MapView({
   pickedPoint,
   onPickPoint,
   moveMode,
+  onStreetView,
   radiusM,
   places,
   selectedId,
@@ -128,6 +131,16 @@ export default function MapView({
                     基準点から {formatDistance(place.distanceM)}
                     {place.address ? `・${place.address.replace(/^.*?[都道府県]/, "").slice(0, 24)}` : ""}
                   </div>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStreetView(place.location, place.name);
+                    }}
+                    className="mt-1 w-full rounded-md bg-white/15 px-2 py-1 text-[11px] font-medium text-white active:bg-white/25"
+                  >
+                    📷 ストリートビュー
+                  </button>
                 </div>
               )}
               <CategoryMarker

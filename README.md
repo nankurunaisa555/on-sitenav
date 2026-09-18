@@ -56,6 +56,7 @@ npm run dev
 | 家賃相場（市区町村別の平均・中央値・階級分布、一戸建/共同住宅別） | e-Stat 令和5年住宅・土地統計調査（112-3-2, 123-3-1） | ESTAT |
 | 基準点から最寄り駅・学区の小中学校への徒歩ルート（道なり距離・時間） | Google Routes API（学校位置は不動産情報ライブラリ XKT006） | Google |
 | 嫌悪施設（パチンコ・工場・ガソリンスタンド・風俗・ごみ処理・下水処理・火葬場・墓地/霊園・神社/寺・葬儀場・物流・変電所・ガスタンク・畜産）| Google Places Nearby（タイプ）＋ Text Search（13語）＋ **OpenStreetMap Overpass API**（寺社・墓地・変電所などタグで網羅）→ 名称・業種・タグで分類し重複除去。課金単価が高いため嫌悪施設タブのボタンを押したときだけ取得（半径1.5km） | Google（OSM はキー不要） |
+| ストリートビュー（地図の長押し／施設の吹き出しから、最寄り60m以内のパノラマを全画面表示） | Google Maps JavaScript API（StreetViewPanorama） | Google |
 | 駅・バス停の時刻表・始発終電 | 公開 API が無いため Google マップへリンク | — |
 | 犯罪発生（窃盗7手口・町丁目別の年間件数）レイヤーと周辺500m集計 | 県警「犯罪オープンデータ」CSV ＋ 国交省「位置参照情報」を事前集計（現在は埼玉県） | 不要 |
 | 犯罪発生マップ（公式） | 都道府県警の Web 地図へリンク | — |
@@ -98,6 +99,8 @@ src/
 │   ├── NimbyPanel.tsx        # 嫌悪施設タブ（オンデマンド探索・種別 ON/OFF）
 │   ├── RouteOverlay.tsx      # 徒歩ルートの折れ線と目的地ラベル
 │   ├── CrimeOverlay.tsx      # 犯罪発生（町丁目別件数）の円レイヤー
+│   ├── LongPress.tsx         # 地図の長押し検出（画面座標→緯度経度）
+│   ├── StreetViewModal.tsx   # 全画面ストリートビュー
 │   └── CategoryFilter.tsx
 ├── hooks/
 │   ├── useGeolocation.ts / usePlaces.ts / useFacts.ts

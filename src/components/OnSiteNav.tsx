@@ -11,6 +11,8 @@ import MapView from "./MapView";
 import PlaceList from "./PlaceList";
 import PricePanel from "./PricePanel";
 import NimbyPanel from "./NimbyPanel";
+import LongPress from "./LongPress";
+import StreetViewModal from "./StreetViewModal";
 import RouteOverlay from "./RouteOverlay";
 import ZoomButtons from "./ZoomButtons";
 import { useFacts } from "@/hooks/useFacts";
@@ -77,6 +79,11 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
   /** 基準点の移動モード（ON のときだけ地図タップで基準候補を置く） */
   const [moveMode, setMoveMode] = useState(false);
+  /** ストリートビューの表示対象 */
+  const [streetView, setStreetView] = useState<{ point: LatLng; title: string | null } | null>(null);
+  const openStreetView = useCallback((point: LatLng, title: string | null = null) => {
+    setStreetView({ point, title });
+  }, []);
   /** 周辺施設ピンの一括表示/非表示。ルート表示時は自動で隠す */
   const [showPins, setShowPins] = useState(true);
   const [showCrime, setShowCrime] = useState(false);
@@ -245,7 +252,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   }
 
   return (
-    <APIProvider apiKey={apiKey} language="ja" region="JP">
+    <APIProvider apiKey={apiKey} language="ja" region="JP" libraries={["geometry"]}>
       <div className="relative h-dvh w-full overflow-hidden bg-gray-100">
         <MapView
           initialCenter={initialCenter}
@@ -255,16 +262,24 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           pickedPoint={pickedPoint}
           onPickPoint={setPickedPoint}
           moveMode={moveMode}
+          onStreetView={openStreetView}
           radiusM={RADIUS_M}
           places={showPins ? visiblePlaces : []}
           selectedId={selectedId}
           onSelect={setSelectedId}
           onCameraChanged={setMapCenter}
         >
+          <LongPress onLongPress={(p) => openStreetView(p, null)} />
           <HazardOverlay enabled={hazardLayers} />
           <CrimeOverlay enabled={showCrime} center={searchCenter ?? mapCenter} />
           <RouteOverlay routes={routing.routes} />
         </MapView>
+
+        <StreetViewModal
+          target={streetView?.point ?? null}
+          title={streetView?.title ?? null}
+          onClose={() => setStreetView(null)}
+        />
 
         {/* 地図上のオーバーレイ UI（上部） */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -308,7 +323,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           )}
           {!moveMode && !moved && searchCenter && !loading && (
             <span className="pointer-events-none rounded-full bg-black/55 px-3 py-1 text-[11px] text-white">
-              距離は「基準点」からの直線距離。右下「📌」で基準点を移動できます
+              距離は基準点からの直線距離。📌で基準点を移動／地図を長押しでストリートビュー
             </span>
           )}
           {loading && (
