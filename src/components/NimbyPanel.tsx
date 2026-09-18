@@ -59,7 +59,7 @@ export default function NimbyPanel({
             onClick={onSearch}
             className="w-full rounded-xl bg-red-800 px-4 py-3 text-sm font-semibold text-white shadow active:scale-[0.99] disabled:opacity-50"
           >
-            {loading ? "半径1.5kmを探索中…" : "⚠️ 基準点の周辺 1.5km の嫌悪施設を探す"}
+            {loading ? "半径300mを探索中…" : "⚠️ 基準点の周辺 300m の嫌悪施設を探す"}
           </button>
           {!hasSearch && (
             <p className="mt-2 text-center text-xs text-gray-500">先に「このエリアを検索」で基準点を決めてください</p>
@@ -121,7 +121,7 @@ export default function NimbyPanel({
           </div>
           <div className="px-4">
             <p className="my-2 rounded-lg bg-red-50 p-2 text-[11px] leading-snug text-red-800">
-              半径1.5kmの候補 {data.items.length} 件。名称・業種からの自動判定のため誤検出や漏れがあります。現地で必ずご確認ください。
+              半径300mの候補 {data.items.length} 件。名称・業種からの自動判定のため誤検出や漏れがあります。現地で必ずご確認ください。
               暴力団事務所は公開データに存在しないため対象外です。
             </p>
             {data.items.length === 0 && (

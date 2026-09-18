@@ -11,9 +11,9 @@ export const runtime = "nodejs";
  * 名称・タイプで種別を判定する。Text Search は1クエリごとに課金されるため、
  * 通常の周辺施設検索とは分けてオンデマンドで呼ぶ。
  */
-const SEARCH_RADIUS_M = 1500;
-/** バイアス外の遠い結果は捨てる */
-const MAX_DISTANCE_M = 2000;
+const SEARCH_RADIUS_M = 300;
+/** バイアス外の遠い結果は捨てる（少しだけ余裕を持たせる） */
+const MAX_DISTANCE_M = 350;
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const cache = new Map<string, { expires: number; data: NimbyResponse }>();
 
