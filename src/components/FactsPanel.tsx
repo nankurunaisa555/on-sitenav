@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import type { CivicPlace, FactsResponse, HazardKey, LandformInfo, SchoolInfo, SectionStatus } from "@/lib/facts-types";
 import type { RouteState, RouteTarget } from "@/hooks/useRoutes";
+import LayerChips from "./LayerChips";
 import { HAZARD_LAYER_MAP } from "@/lib/hazard-layers";
 import { formatDistance, walkMinutes } from "@/lib/geo";
 import type { LatLng, Place } from "@/lib/types";
@@ -24,6 +25,9 @@ type Props = {
   onToggleHazard: (key: HazardKey) => void;
   crimeEnabled: boolean;
   onToggleCrime: () => void;
+  onNoHazards: () => void;
+  crimeAvailable: boolean;
+  crimeLabel: string;
   /** ルートの出発点（基準点） */
   origin: LatLng | null;
   routes: ReadonlyMap<RouteTarget, RouteState>;
@@ -41,6 +45,9 @@ export default function FactsPanel({
   onToggleHazard,
   crimeEnabled,
   onToggleCrime,
+  onNoHazards,
+  crimeAvailable,
+  crimeLabel,
   origin,
   routes,
   onToggleRoute,
@@ -65,6 +72,20 @@ export default function FactsPanel({
         </p>
       )}
 
+      {group === "land" && (
+        <div className="-mx-4 pt-1">
+          <LayerChips
+            enabled={enabledHazards}
+            onToggle={onToggleHazard}
+            onNone={onNoHazards}
+            crimeEnabled={crimeEnabled}
+            crimeAvailable={crimeAvailable}
+            crimeLabel={crimeLabel}
+            onToggleCrime={onToggleCrime}
+          />
+        </div>
+      )}
+
       {facts && group === "land" && (
         <div className={`space-y-4 pb-4 ${loading ? "opacity-60" : ""}`}>
           {/* 災害リスク */}
@@ -86,7 +107,6 @@ export default function FactsPanel({
             <ul className="divide-y divide-gray-100">
               {facts.hazard.items.map((h) => {
                 const def = HAZARD_LAYER_MAP.get(h.key);
-                const on = enabledHazards.has(h.key);
                 return (
                   <li key={h.key} className="flex items-center gap-3 py-2">
                     <span className="w-10 shrink-0 text-sm font-medium text-gray-700">{h.label}</span>
@@ -102,16 +122,6 @@ export default function FactsPanel({
                         <span className="text-sm text-gray-400">該当なし</span>
                       )}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => onToggleHazard(h.key)}
-                      aria-pressed={on}
-                      className={`shrink-0 rounded-md border px-2 py-1 text-xs font-medium ${
-                        on ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-600"
-                      }`}
-                    >
-                      {on ? "地図に表示中" : "地図に表示"}
-                    </button>
                   </li>
                 );
               })}
@@ -220,19 +230,7 @@ export default function FactsPanel({
               </p>
             ) : (
               <>
-                <div className="mb-1 flex items-center justify-between gap-2">
-                  <span className="text-xs text-gray-500">町丁目ごとの年間件数</span>
-                  <button
-                    type="button"
-                    onClick={onToggleCrime}
-                    aria-pressed={crimeEnabled}
-                    className={`shrink-0 rounded-md border px-2 py-1 text-xs font-medium ${
-                      crimeEnabled ? "border-gray-900 bg-gray-900 text-white" : "border-gray-200 text-gray-600"
-                    }`}
-                  >
-                    {crimeEnabled ? "地図に表示中" : "地図に表示"}
-                  </button>
-                </div>
+                <p className="mb-1 text-xs text-gray-500">町丁目ごとの年間件数（地図表示は上部「犯罪発生」チップ）</p>
                 {facts.crime.around500m ? (
                   <CrimeRows
                     label={`周辺500m 合計（${facts.crime.around500m.townCount}町丁目）`}

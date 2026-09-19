@@ -19,11 +19,8 @@ type Props = {
   /** 現在地の測位精度（m）。精度円を描く */
   userAccuracyM: number | null;
   searchCenter: LatLng | null;
-  /** 地図タップで選んだ候補地点 */
+  /** 地図タップで選んだ候補地点（現在は未使用だが互換のため残す） */
   pickedPoint: LatLng | null;
-  onPickPoint: (p: LatLng | null) => void;
-  /** 基準点の移動モード。ON のときだけ地図タップで候補地点を置く */
-  moveMode: boolean;
   /** 施設の吹き出しから「ストリートビュー」を開く */
   onStreetView: (p: LatLng, title: string) => void;
   /** 下部シートが地図を覆っている高さ（px）。中心合わせをこの分だけ上にずらす */
@@ -43,8 +40,6 @@ export default function MapView({
   userAccuracyM,
   searchCenter,
   pickedPoint,
-  onPickPoint,
-  moveMode,
   onStreetView,
   bottomInsetPx,
   radiusM,
@@ -67,12 +62,7 @@ export default function MapView({
       disableDefaultUI
       zoomControl={false}
       clickableIcons={false}
-      onClick={(e) => {
-        onSelect(null);
-        if (!moveMode) return;
-        const ll = e.detail.latLng;
-        if (ll) onPickPoint({ lat: ll.lat, lng: ll.lng });
-      }}
+      onClick={() => onSelect(null)}
       onCameraChanged={(e: MapCameraChangedEvent) => onCameraChanged(e.detail.center)}
       className="h-full w-full"
     >

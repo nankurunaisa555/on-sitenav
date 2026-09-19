@@ -6,7 +6,6 @@ import BottomSheet, { type SheetTab } from "./BottomSheet";
 import FactsPanel from "./FactsPanel";
 import CrimeOverlay from "./CrimeOverlay";
 import HazardOverlay from "./HazardOverlay";
-import LayerMenu from "./LayerMenu";
 import MapView from "./MapView";
 import PlaceList from "./PlaceList";
 import PricePanel from "./PricePanel";
@@ -77,8 +76,6 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   const [hazardLayers, setHazardLayers] = useState<Set<HazardKey>>(new Set());
   /** 地図タップで選んだ、次の検索の基準候補 */
   const [pickedPoint, setPickedPoint] = useState<LatLng | null>(null);
-  /** 基準点の移動モード（ON のときだけ地図タップで基準候補を置く） */
-  const [moveMode, setMoveMode] = useState(false);
   /** ストリートビューの表示対象 */
   const [streetView, setStreetView] = useState<{ point: LatLng; title: string | null } | null>(null);
   const openStreetView = useCallback((point: LatLng, title: string | null = null) => {
@@ -144,7 +141,6 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       setSearchCenter(center);
       setSelectedId(null);
       setPickedPoint(null);
-      setMoveMode(false);
       routing.clear(); // 出発点が変わるのでルートは消す
       trades.reset();
       nimby.reset();
@@ -263,8 +259,6 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           userAccuracyM={geo.position?.accuracyM ?? null}
           searchCenter={searchCenter}
           pickedPoint={pickedPoint}
-          onPickPoint={setPickedPoint}
-          moveMode={moveMode}
           onStreetView={openStreetView}
           bottomInsetPx={showSheet ? sheetHeight : 0}
           radiusM={RADIUS_M}
@@ -273,7 +267,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           onSelect={setSelectedId}
           onCameraChanged={setMapCenter}
         >
-          <LongPress onLongPress={(p) => openStreetView(p, null)} />
+          <LongPress onLongPress={(p) => runSearch(p)} />
           <HazardOverlay enabled={hazardLayers} />
           <CrimeOverlay enabled={showCrime} center={searchCenter ?? mapCenter} />
           <RouteOverlay routes={routing.routes} />
@@ -291,43 +285,18 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
             <span className="text-sm font-bold tracking-tight text-gray-900">On-siteNav</span>
             <span className="text-xs text-gray-500">現地ファクト</span>
           </div>
-          {moveMode && pickedPoint && !loading ? (
-            <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-amber-500 pl-4 pr-1.5 py-1.5 text-sm font-medium text-white shadow-lg">
-              <button type="button" onClick={() => runSearch(pickedPoint)} className="active:opacity-80">
-                📌 ここを基準に検索
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setPickedPoint(null);
-                  setMoveMode(false);
-                }}
-                aria-label="移動をやめる"
-                className="flex h-7 w-7 items-center justify-center rounded-full bg-white/25 text-xs"
-              >
-                ✕
-              </button>
-            </div>
-          ) : moveMode ? (
-            <span className="pointer-events-auto rounded-full bg-amber-500 px-4 py-2 text-sm font-medium text-white shadow-lg">
-              📌 移動モード：地図をタップして基準点を置いてください
-            </span>
-          ) : (
-            moved &&
-            mapCenter &&
-            !loading && (
-              <button
-                type="button"
-                onClick={() => runSearch(mapCenter)}
-                className="pointer-events-auto rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-lg active:scale-95"
-              >
-                地図の中心を基準に検索
-              </button>
-            )
+          {moved && mapCenter && !loading && (
+            <button
+              type="button"
+              onClick={() => runSearch(mapCenter)}
+              className="pointer-events-auto rounded-full bg-gray-900 px-4 py-2 text-sm font-medium text-white shadow-lg active:scale-95"
+            >
+              地図の中心を基準に検索
+            </button>
           )}
-          {!moveMode && !moved && searchCenter && !loading && (
+          {!moved && searchCenter && !loading && (
             <span className="pointer-events-none rounded-full bg-black/55 px-3 py-1 text-[11px] text-white">
-              距離は基準点からの直線距離。📌で基準点を移動／地図を長押しでストリートビュー
+              距離は基準点からの直線距離。地図を長押しすると基準点を移して再検索します
             </span>
           )}
           {loading && (
@@ -342,7 +311,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           )}
           {geo.status === "denied" && (
             <span className="pointer-events-auto rounded-full bg-amber-50 px-4 py-2 text-xs text-amber-800 shadow">
-              位置情報が許可されていません。右下「📌」で移動モードにして地図をタップしてください
+              位置情報が許可されていません。地図を長押しして基準点を置いてください
             </span>
           )}
         </div>
@@ -355,19 +324,14 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           <div className="relative mr-3 mb-3 flex items-end justify-end gap-2">
             <button
               type="button"
+              disabled={!searchCenter}
               onClick={() => {
-                setMoveMode((v) => {
-                  if (v) setPickedPoint(null);
-                  return !v;
-                });
+                if (searchCenter) openStreetView(searchCenter, "基準点");
               }}
-              aria-pressed={moveMode}
-              aria-label={moveMode ? "基準点の移動モードを終了" : "基準点を移動"}
-              className={`pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full text-lg shadow-lg active:scale-95 ${
-                moveMode ? "bg-amber-500 text-white" : "bg-white text-gray-800"
-              }`}
+              aria-label="基準点のストリートビューを開く"
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-lg shadow-lg active:scale-95 disabled:opacity-50"
             >
-              <span aria-hidden>📌</span>
+              <span aria-hidden>📷</span>
             </button>
             <button
               type="button"
@@ -380,14 +344,6 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
             >
               <span aria-hidden>{showPins ? "📍" : "🚫"}</span>
             </button>
-            <LayerMenu
-              enabled={hazardLayers}
-              onToggle={toggleHazard}
-              crimeEnabled={showCrime}
-              onToggleCrime={() => setShowCrime((v) => !v)}
-              crimeAvailable={crimePref !== null}
-              crimeLabel={crimePref ? `犯罪発生 ${crimePref.name}（2024年）` : "犯罪発生（この地域は未対応）"}
-            />
             <button
               type="button"
               onClick={() => setShowSheet((v) => !v)}
@@ -476,6 +432,12 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                 onToggleHazard={toggleHazard}
                 crimeEnabled={showCrime}
                 onToggleCrime={() => setShowCrime((v) => !v)}
+                onNoHazards={() => {
+                  setHazardLayers(new Set());
+                  setShowCrime(false);
+                }}
+                crimeAvailable={crimePref !== null}
+                crimeLabel={crimePref ? `犯罪発生 ${crimePref.name}（2024年）` : "犯罪発生（この地域は未対応）"}
                 origin={searchCenter}
                 routes={routing.routes}
                 onToggleRoute={toggleRoute}
