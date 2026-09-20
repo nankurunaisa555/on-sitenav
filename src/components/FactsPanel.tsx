@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { CivicPlace, FactsResponse, HazardKey, LandformInfo, SchoolInfo, SectionStatus } from "@/lib/facts-types";
 import type { RouteState, RouteTarget } from "@/hooks/useRoutes";
 import LayerChips from "./LayerChips";
+import MapLegend from "./MapLegend";
 import { HAZARD_LAYER_MAP } from "@/lib/hazard-layers";
 import { formatDistance, walkMinutes } from "@/lib/geo";
 import type { LatLng, Place } from "@/lib/types";
@@ -83,6 +84,9 @@ export default function FactsPanel({
             crimeLabel={crimeLabel}
             onToggleCrime={onToggleCrime}
           />
+          <div className="px-4 pb-2">
+            <MapLegend hazards={enabledHazards} crime={crimeEnabled} />
+          </div>
         </div>
       )}
 

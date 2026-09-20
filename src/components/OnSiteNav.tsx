@@ -12,6 +12,7 @@ import PricePanel from "./PricePanel";
 import NimbyPanel from "./NimbyPanel";
 import LongPress from "./LongPress";
 import StreetViewModal from "./StreetViewModal";
+import MapLegend from "./MapLegend";
 import RouteOverlay from "./RouteOverlay";
 import ZoomButtons from "./ZoomButtons";
 import { useFacts } from "@/hooks/useFacts";
@@ -25,7 +26,7 @@ import { DEFAULT_CENTER, distanceMeters, formatDistance } from "@/lib/geo";
 import { CRIME_PREFS, guessPrefCode } from "@/lib/crime";
 import { LIST_CATEGORY_KEYS } from "@/lib/categories";
 import { NIMBY_KINDS, type NimbyKindKey } from "@/lib/nimby";
-import type { CategoryKey, LatLng } from "@/lib/types";
+import type { CategoryKey, LatLng, Place } from "@/lib/types";
 
 const RADIUS_M = 800;
 /** 検索中心からこれ以上動いたら「このエリアを検索」を出す */
@@ -40,6 +41,7 @@ const TABS: readonly SheetTab<TabKey>[] = [
   { key: "nimby", label: "嫌悪施設" },
 ];
 const ALL_LIST_CATEGORIES = new Set<CategoryKey>(LIST_CATEGORY_KEYS);
+const EMPTY_HAZARDS: ReadonlySet<HazardKey> = new Set();
 const ALL_NIMBY_KINDS = new Set<NimbyKindKey>(NIMBY_KINDS.map((k) => k.key));
 
 function readLatLngFromUrl(): LatLng | null {
@@ -124,17 +126,105 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     () => (nimby.data ? nimby.data.items.filter((p) => activeKinds.has(p.sub.key as NimbyKindKey)) : []),
     [nimby.data, activeKinds],
   );
-  /** 地図のピン: ON のカテゴリ ＋ 最寄り駅（常時）＋ 嫌悪施設（取得済みなら） */
+  /** 交通・学区・人口タブ用: 駅（半径外の最寄りも）・最寄りバス停2つ・学区の学校・役所・図書館 */
+  const communityPlaces = useMemo(() => {
+    const out: Place[] = [];
+    const ids = new Set<string>();
+    const push = (p: Place) => {
+      if (ids.has(p.id)) return;
+      ids.add(p.id);
+      out.push(p);
+    };
+    for (const s of [...rawPlaces.filter((p) => p.category === "station"), ...nearestStations]) push(s);
+    const busKey = (n: string) => n.replace(/[（(].*?[）)]/g, "").replace(/\s.*$/, "").trim();
+    const seenBus = new Set<string>();
+    for (const b of rawPlaces.filter((p) => p.category === "bus")) {
+      const k = busKey(b.name);
+      if (seenBus.has(k)) continue;
+      seenBus.add(k);
+      push(b);
+      if (seenBus.size >= 2) break;
+    }
+    const school = facts.data?.school;
+    for (const [info, label] of [
+      [school?.elementary, "小学校区"],
+      [school?.juniorHigh, "中学校区"],
+    ] as const) {
+      if (info?.location) {
+        push({
+          id: `school:${info.code ?? info.name}`,
+          name: info.name,
+          category: "school",
+          location: info.location,
+          address: info.address ?? "",
+          distanceM: searchCenter ? distanceMeters(searchCenter, info.location) : 0,
+          sub: { key: "school", label, emoji: "🏫" },
+        });
+      }
+    }
+    for (const c of civicPlaces) push(c);
+    return out;
+  }, [rawPlaces, nearestStations, facts.data?.school, civicPlaces, searchCenter]);
+
+  /** 土地・災害タブ用: 避難場所 */
+  const shelterPlaces = useMemo<Place[]>(
+    () =>
+      (facts.data?.shelters.shelters ?? []).map((s) => ({
+        id: s.id,
+        name: s.name,
+        category: "shelter",
+        location: s.location,
+        address: s.address ?? "",
+        distanceM: s.distanceM,
+        sub: { key: "shelter", label: `避難場所（${s.hazards.join("・")}）`, emoji: "🏃" },
+      })),
+    [facts.data?.shelters],
+  );
+
+  /** 価格タブ用: 地価公示・地価調査の地点（価格ラベル付き） */
+  const landPricePlaces = useMemo<Place[]>(
+    () =>
+      (facts.data?.landPrice.points ?? []).map((p) => ({
+        id: `landprice:${p.id}`,
+        name: p.address || p.label,
+        category: "landprice",
+        location: p.location,
+        address: [p.kind, p.useCategory, p.zoning].filter(Boolean).join("・"),
+        distanceM: p.distanceM,
+        sub: { key: "landprice", label: `${p.kind} ${p.pricePerSqm.toLocaleString("ja-JP")}円/㎡`, emoji: "💰" },
+        badge: `${(p.pricePerSqm / 10_000).toFixed(1)}万/㎡`,
+      })),
+    [facts.data?.landPrice],
+  );
+
+  /** 地図のピン: 今のタブに関係するものだけ */
   const visiblePlaces = useMemo(() => {
-    const filtered = listPlaces.filter((p) => activeCategories.has(p.category));
-    const ids = new Set(filtered.map((p) => p.id));
-    const stations = [...rawPlaces.filter((p) => p.category === "station"), ...nearestStations].filter((s) => {
-      if (ids.has(s.id)) return false;
-      ids.add(s.id);
-      return true;
-    });
-    return [...filtered, ...stations, ...nimbyPlaces];
-  }, [listPlaces, rawPlaces, nearestStations, activeCategories, nimbyPlaces]);
+    switch (tab) {
+      case "places":
+        return listPlaces.filter((p) => activeCategories.has(p.category));
+      case "community":
+        return communityPlaces;
+      case "land":
+        return shelterPlaces;
+      case "price":
+        return landPricePlaces;
+      case "nimby":
+        return nimbyPlaces;
+    }
+  }, [tab, listPlaces, activeCategories, communityPlaces, shelterPlaces, landPricePlaces, nimbyPlaces]);
+
+  // 嫌悪施設タブを開いたら自動で探索する（未取得のときだけ）
+  useEffect(() => {
+    if (tab === "nimby" && searchCenter && !nimby.data && !nimby.loading && !nimby.error) {
+      void nimby.toggle(searchCenter);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, searchCenter, nimby.data, nimby.loading, nimby.error]);
+
+  // タブを変えたらピンの選択は解除
+  useEffect(() => {
+    setSelectedId(null);
+  }, [tab]);
 
   const runSearch = useCallback(
     (center: LatLng) => {
@@ -268,8 +358,9 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           onCameraChanged={setMapCenter}
         >
           <LongPress onLongPress={(p) => runSearch(p)} />
-          <HazardOverlay enabled={hazardLayers} />
-          <CrimeOverlay enabled={showCrime} center={searchCenter ?? mapCenter} />
+          {/* レイヤーは土地・災害タブのときだけ地図に重ねる */}
+          <HazardOverlay enabled={tab === "land" ? hazardLayers : EMPTY_HAZARDS} />
+          <CrimeOverlay enabled={tab === "land" && showCrime} center={searchCenter ?? mapCenter} />
           <RouteOverlay routes={routing.routes} />
         </MapView>
 
@@ -278,6 +369,12 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           title={streetView?.title ?? null}
           onClose={() => setStreetView(null)}
         />
+
+        {tab === "land" && (hazardLayers.size > 0 || showCrime) && (
+          <div className="pointer-events-none absolute top-[calc(env(safe-area-inset-top)+3.5rem)] left-3 max-w-[70vw]">
+            <MapLegend hazards={hazardLayers} crime={showCrime} compact />
+          </div>
+        )}
 
         {/* 地図上のオーバーレイ UI（上部） */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">

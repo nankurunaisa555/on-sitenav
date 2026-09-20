@@ -2,7 +2,6 @@
 
 import type { HazardKey } from "@/lib/facts-types";
 import { HAZARD_LAYERS } from "@/lib/hazard-layers";
-import { CRIME_LEGEND } from "@/lib/crime";
 
 type Props = {
   enabled: ReadonlySet<HazardKey>;
@@ -70,16 +69,6 @@ export default function LayerChips({
           犯罪発生
         </button>
       </div>
-      {crimeEnabled && (
-        <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
-          {CRIME_LEGEND.map((l) => (
-            <span key={l.label} className="flex items-center gap-1 text-[10px] text-gray-600">
-              <span className="h-2 w-2 rounded-full" style={{ backgroundColor: l.color }} />
-              {l.label}
-            </span>
-          ))}
-        </div>
-      )}
       <p className="mt-1 text-[10px] leading-snug text-gray-400">
         ハザード: 国土地理院「重ねるハザードマップ」／犯罪発生: 県警 犯罪オープンデータ（町丁目別
         {crimeAvailable ? "" : "・この地域は未整備"}）

@@ -1,6 +1,6 @@
 import { PNG } from "pngjs";
 import type { HazardHit, HazardKey } from "@/lib/facts-types";
-import { HAZARD_LAYERS } from "@/lib/hazard-layers";
+import { DEPTH_LEGEND, HAZARD_LAYERS } from "@/lib/hazard-layers";
 import { lngLatToTile, tileUrl } from "@/lib/tile";
 import type { LatLng } from "@/lib/types";
 
@@ -8,15 +8,9 @@ const SAMPLE_ZOOM = 16;
 
 type RGB = readonly [number, number, number];
 
-/** 浸水深の凡例色（洪水・内水・高潮・津波で共通の「新凡例」） */
-const DEPTH_LEGEND: readonly { rgb: RGB; label: string }[] = [
-  { rgb: [247, 245, 169], label: "0.5m未満" },
-  { rgb: [255, 216, 192], label: "0.5〜3m" },
-  { rgb: [255, 183, 183], label: "3〜5m" },
-  { rgb: [255, 145, 145], label: "5〜10m" },
-  { rgb: [242, 133, 201], label: "10〜20m" },
-  { rgb: [220, 122, 220], label: "20m以上" },
-  // 旧凡例（計画規模など）で使われる色も拾う
+/** 浸水深の凡例色。地図の凡例と同じ定義を使い、旧凡例（計画規模など）の色も拾う */
+const DEPTH_LEGEND_ALL: readonly { rgb: RGB; label: string }[] = [
+  ...DEPTH_LEGEND.map((d) => ({ rgb: d.rgb as RGB, label: d.label })),
   { rgb: [255, 255, 179], label: "0.5m未満" },
   { rgb: [247, 193, 143], label: "0.5〜1m" },
   { rgb: [255, 160, 122], label: "1〜2m" },
@@ -30,7 +24,7 @@ function colorDistance(a: RGB, b: RGB): number {
 
 function classifyDepth(rgb: RGB): { label: string; uncertain: boolean } {
   let best: { label: string; d: number } | null = null;
-  for (const entry of DEPTH_LEGEND) {
+  for (const entry of DEPTH_LEGEND_ALL) {
     const d = colorDistance(rgb, entry.rgb);
     if (!best || d < best.d) best = { label: entry.label, d };
   }

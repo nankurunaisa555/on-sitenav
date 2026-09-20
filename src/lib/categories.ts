@@ -33,6 +33,9 @@ export const CATEGORIES: readonly CategoryDef[] = [
   { key: "library", label: "図書館", emoji: "📚", googleTypes: [], color: "#0f766e" },
   // 嫌悪施設はオンデマンド（/api/nimby）。sub に種別が入る
   { key: "nimby", label: "嫌悪施設", emoji: "⚠️", googleTypes: [], color: "#7f1d1d" },
+  // 以下は各タブの情報を地図に出すための内部カテゴリ
+  { key: "shelter", label: "避難場所", emoji: "🏃", googleTypes: [], color: "#15803d" },
+  { key: "landprice", label: "地価公示", emoji: "💰", googleTypes: [], color: "#0f766e" },
 ] as const;
 
 export const CATEGORY_MAP: ReadonlyMap<CategoryKey, CategoryDef> = new Map(
@@ -43,7 +46,7 @@ export const CATEGORY_KEYS: readonly CategoryKey[] = CATEGORIES.map((c) => c.key
 
 /** 「周辺施設」タブに出すカテゴリ。駅・バス停は交通タブ、嫌悪施設は専用タブへ */
 export const LIST_CATEGORIES: readonly CategoryDef[] = CATEGORIES.filter(
-  (c) => c.key !== "station" && c.key !== "bus" && c.key !== "nimby",
+  (c) => !["station", "bus", "nimby", "shelter", "landprice"].includes(c.key),
 );
 export const LIST_CATEGORY_KEYS: readonly CategoryKey[] = LIST_CATEGORIES.map((c) => c.key);
 

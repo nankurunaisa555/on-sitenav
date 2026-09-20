@@ -141,6 +141,14 @@ export default function MapView({
                 color={cat?.color ?? "#6b7280"}
                 selected={selected}
               />
+              {place.badge && !selected && (
+                <span
+                  className="-mt-0.5 whitespace-nowrap rounded px-1 py-px text-[10px] font-bold text-white shadow"
+                  style={{ backgroundColor: cat?.color ?? "#374151" }}
+                >
+                  {place.badge}
+                </span>
+              )}
             </div>
           </AdvancedMarker>
         );

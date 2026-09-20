@@ -72,3 +72,28 @@ export const HAZARD_LAYER_MAP: ReadonlyMap<HazardKey, HazardLayerDef> = new Map(
 export function disaportalUrl(lat: number, lng: number): string {
   return `https://disaportal.gsi.go.jp/maps/?ll=${lat.toFixed(6)},${lng.toFixed(6)}&z=16&base=pale&vs=c1j0l0u0t0h0z0`;
 }
+
+/** 浸水深の凡例色（洪水・内水・高潮・津波で共通の「新凡例」）。サーバーの色判定と地図の凡例表示で共用 */
+export const DEPTH_LEGEND: readonly { rgb: readonly [number, number, number]; hex: string; label: string }[] = [
+  { rgb: [247, 245, 169], hex: "#f7f5a9", label: "0.5m未満" },
+  { rgb: [255, 216, 192], hex: "#ffd8c0", label: "0.5〜3m" },
+  { rgb: [255, 183, 183], hex: "#ffb7b7", label: "3〜5m" },
+  { rgb: [255, 145, 145], hex: "#ff9191", label: "5〜10m" },
+  { rgb: [242, 133, 201], hex: "#f285c9", label: "10〜20m" },
+  { rgb: [220, 122, 220], hex: "#dc7adc", label: "20m以上" },
+];
+
+/** 土砂災害警戒区域の凡例 */
+export const SEDIMENT_LEGEND: readonly { hex: string; label: string }[] = [
+  { hex: "#ffe81c", label: "警戒区域（イエロー）" },
+  { hex: "#c00000", label: "特別警戒区域（レッド）" },
+];
+
+/** レイヤーの説明（凡例と一緒に出す一言） */
+export const HAZARD_NOTES: Record<HazardKey, string> = {
+  flood: "想定最大規模の降雨で河川が氾濫した場合の浸水深",
+  naisui: "下水道などで排水しきれない雨水による浸水想定（公表自治体のみ）",
+  hightide: "想定最大規模の高潮による浸水深",
+  tsunami: "最大クラスの津波による浸水深",
+  sediment: "土石流・急傾斜地の崩壊・地すべりの警戒区域",
+};

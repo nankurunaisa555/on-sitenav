@@ -19,7 +19,9 @@ export type CategoryKey =
   | "shopping"
   | "government"
   | "library"
-  | "nimby";
+  | "nimby"
+  | "shelter"
+  | "landprice";
 
 export type Place = {
   id: string;
@@ -31,6 +33,8 @@ export type Place = {
   distanceM: number;
   /** 細分類（嫌悪施設の種別など）。あればピンの絵文字と一覧の表記に使う */
   sub?: { key: string; label: string; emoji: string };
+  /** ピンの下に常時出す短いラベル（地価公示の価格など） */
+  badge?: string;
 };
 
 export type NimbyPlace = Place & { category: "nimby"; sub: NonNullable<Place["sub"]> };
