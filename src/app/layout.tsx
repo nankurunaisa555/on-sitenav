@@ -1,9 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import PwaRegister from "@/components/PwaRegister";
 
 export const metadata: Metadata = {
   title: "On-siteNav",
+  applicationName: "On-siteNav",
   description: "現地で顧客と一緒に見る、周辺施設のファクト・ダッシュボード",
+  manifest: "/manifest.webmanifest",
+  // iOS: ホーム画面に追加したときに全画面のアプリとして開く
+  appleWebApp: { capable: true, statusBarStyle: "default", title: "On-siteNav" },
+  icons: { icon: "/icon.svg", apple: "/icons/apple-touch-icon.png" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -17,7 +24,10 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ja">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">
+        {children}
+        <PwaRegister />
+      </body>
     </html>
   );
 }

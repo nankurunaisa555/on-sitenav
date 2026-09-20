@@ -13,6 +13,7 @@ import NimbyPanel from "./NimbyPanel";
 import LongPress from "./LongPress";
 import StreetViewModal from "./StreetViewModal";
 import MapLegend from "./MapLegend";
+import InstallButton from "./InstallButton";
 import RouteOverlay from "./RouteOverlay";
 import ZoomButtons from "./ZoomButtons";
 import { useFacts } from "@/hooks/useFacts";
@@ -382,6 +383,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
             <span className="text-sm font-bold tracking-tight text-gray-900">On-siteNav</span>
             <span className="text-xs text-gray-500">現地ファクト</span>
           </div>
+          <InstallButton />
           {moved && mapCenter && !loading && (
             <button
               type="button"

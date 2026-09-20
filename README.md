@@ -35,6 +35,13 @@ npm run dev
 - Maps JavaScript API
 - Places API (New)
 
+## アプリとしてインストール（PWA）
+
+- Android（Chrome / Brave）: 画面上部に「ホーム画面にアプリを追加」ボタンが出ます（またはブラウザメニューの「アプリをインストール」）
+- iPhone（Safari）: 共有 →「ホーム画面に追加」
+- アイコンは `npm run build:icons` で [scripts/build-icons.mjs](scripts/build-icons.mjs) の SVG 定義から再生成できます（`public/icons/*.png`, `src/app/icon.svg`）
+- マニフェストは [src/app/manifest.ts](src/app/manifest.ts)、サービスワーカーは `public/sw.js`（本番のみ登録。地図・API はキャッシュしない）
+
 ## 地図に出るもの（タブ連動）
 
 地図のピンとレイヤーは、いま開いているタブに関係するものだけを表示します。

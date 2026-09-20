@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "build:icons": "node scripts/build-icons.mjs",
     "build:crime": "node scripts/build-crime-data.mjs"
   },
   "dependencies": {
