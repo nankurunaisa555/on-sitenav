@@ -538,7 +538,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
             <button
               type="button"
               onClick={() => setShowCustom(true)}
-              aria-label="施設の登録（設定）"
+              aria-label="設定（施設の登録・アプリアイコン）"
               className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-lg shadow-lg active:scale-95"
             >
               <span aria-hidden>⚙️</span>

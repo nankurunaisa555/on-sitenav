@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import PwaRegister from "@/components/PwaRegister";
+import AppIconSync from "@/components/AppIconSync";
 
 export const metadata: Metadata = {
   title: "On-siteNav",
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased">
         {children}
         <PwaRegister />
+        <AppIconSync />
       </body>
     </html>
   );

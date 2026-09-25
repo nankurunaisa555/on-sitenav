@@ -40,8 +40,9 @@ npm run dev
 
 - Android（Chrome / Brave）: 画面上部に「ホーム画面にアプリを追加」ボタンが出ます（またはブラウザメニューの「アプリをインストール」）
 - iPhone（Safari）: 共有 →「ホーム画面に追加」
-- アイコンは `npm run build:icons` で [scripts/build-icons.mjs](scripts/build-icons.mjs) の SVG 定義から再生成できます（`public/icons/*.png`, `src/app/icon.svg`）
-- マニフェストは [src/app/manifest.ts](src/app/manifest.ts)、サービスワーカーは `public/sw.js`（本番のみ登録。地図・API はキャッシュしない）
+- アイコンは3案（ブルー・ピン／マップ／ナイト・ホーム）から ⚙️ 設定 →「アプリアイコン」で選べます（このブラウザに保存。ホーム画面のアイコンは追加し直すと変わる）
+- アイコン画像は `npm run build:icons` で [scripts/build-icons.mjs](scripts/build-icons.mjs) の SVG 定義から再生成（`public/icons/<案>/`、既定の案は `public/icons/*.png` と `src/app/icon.svg` にも出力）。案の一覧は `src/lib/app-icons.ts`
+- マニフェストは [src/app/manifest.webmanifest/route.ts](src/app/manifest.webmanifest/route.ts)（`?icon=<案>` でアイコンを切り替え）、サービスワーカーは `public/sw.js`（本番のみ登録。地図・API はキャッシュしない）
 
 ## 施設の登録（⚙️ ボタン）
 
