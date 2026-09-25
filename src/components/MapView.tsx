@@ -296,12 +296,13 @@ function PanTo({ target, bottomInsetPx }: { target: LatLng | null; bottomInsetPx
       }
       idle.remove();
     });
-    // 保留は一定時間で打ち切る（シートを閉じているときなど、0 のままが正しい場合）
-    const giveUp = setTimeout(() => (pendingRef.current = false), 3000);
+    // 保留は、利用者が地図を動かしたら取り消す（時間では打ち切らない。
+    // ブログ記事に埋め込まれて画面外にあると、ブラウザが描画を止めてシートの高さが測れるのが遅れるため）
+    const drag = map.addListener("dragstart", () => (pendingRef.current = false));
     return () => {
       clearTimeout(timer);
-      clearTimeout(giveUp);
       idle.remove();
+      drag.remove();
     };
   }, [map, target]);
 
