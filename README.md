@@ -26,6 +26,7 @@ npm run dev
 | `GOOGLE_MAPS_API_KEY` | サーバー側の Places 検索 | 非公開。**API 制限で Places API (New) のみ**を推奨 |
 | `NEXT_PUBLIC_GOOGLE_MAP_ID` | 任意。Cloud Console の Map ID | 未設定時は `DEMO_MAP_ID` |
 | `REINFOLIB_API_KEY` | 任意。国交省「不動産情報ライブラリ」API | 用途地域・学区・人口・価格に必要。[利用申請](https://www.reinfolib.mlit.go.jp/api/request/)（無料） |
+| `YAHOO_CLIENT_ID` | 任意。Yahoo! JAPAN の Client ID（YOLP ローカルサーチ） | 嫌悪施設のパチンコ店・ラブホテル・解体業者に使用（Google の API はこれらを返さない）。[登録](https://e.developer.yahoo.co.jp/register)（無料・1日5万回まで） |
 | `ESTAT_APP_ID` | 任意。e-Stat API のアプリケーションID | 家賃相場（統計）に必要。[登録](https://www.e-stat.go.jp/api/)（無料・即時） |
 
 同じキーを両方に使っても動きますが、本番では用途別に2つに分けるのが安全です。
@@ -82,7 +83,7 @@ Places API (New) の Nearby Search（Pro）は月5,000回まで無料です（Go
 | 地価公示地点の相続税路線価・高度地区の高さ・利回り・前面道路 | 不動産情報ライブラリ XCT001（鑑定評価書） | REINFOLIB |
 | 家賃相場（市区町村別の平均・中央値・階級分布、一戸建/共同住宅別） | e-Stat 令和5年住宅・土地統計調査（112-3-2, 123-3-1） | ESTAT |
 | 基準点から最寄り駅・学区の小中学校への徒歩ルート（道なり距離・時間） | Google Routes API（学校位置は不動産情報ライブラリ XKT006） | Google |
-| 嫌悪施設（パチンコ・工場・ガソリンスタンド・風俗・ごみ処理・下水処理・火葬場・墓地/霊園・神社/寺・葬儀場・物流・変電所・ガスタンク・畜産）| **OpenStreetMap Overpass API**（タグ＋名称の語で探索。無料）＋ Google Places Nearby Search 1回（ガソリンスタンド・葬儀場・墓地・夜の店などの業種タイプ）。有料の呼び出しは1回だけで、結果は約100mグリッド単位で Vercel CDN に30日キャッシュ。Places API はパチンコ店をほぼ返さないため語句のテキスト検索は廃止 | Google（OSM はキー不要） |
+| 嫌悪施設（パチンコ・ラブホテル・工場・解体/産廃処理・ガソリンスタンド・風俗・ごみ処理・下水処理・火葬場・墓地/霊園・神社/寺・葬儀場・物流・変電所・ガスタンク・畜産）| **OpenStreetMap Overpass API**（タグ＋名称の語で探索。無料）＋ Google Places Nearby Search 1回（ガソリンスタンド・葬儀場・墓地・夜の店など）＋ **Yahoo! ローカルサーチ**（業種コードでパチンコ店・ラブホテル・ごみ処理・自動車解体など。Google の API はパチンコ店・ラブホテルを返さないため）＋ **産業廃棄物処分業者名簿**（埼玉県・さいたま市の公式名簿から `npm run build:sanpai` で作成した処理施設の位置、`src/data/sanpai-11.json`）。約100mグリッド単位で Vercel CDN に30日キャッシュ | Google・Yahoo!（OSM・名簿はキー不要） |
 | ストリートビュー（右下 📷＝基準点／施設の吹き出しから、最寄り60m以内のパノラマを全画面表示） | Google Maps JavaScript API（StreetViewPanorama） | Google |
 | 駅・バス停の時刻表・始発終電 | 公開 API が無いため Google マップへリンク | — |
 | 犯罪発生（窃盗7手口・町丁目別の年間件数）レイヤーと周辺500m集計 | 県警「犯罪オープンデータ」CSV ＋ 国交省「位置参照情報」を事前集計（現在は埼玉県） | 不要 |

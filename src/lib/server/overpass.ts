@@ -41,12 +41,24 @@ const TAG_RULES: readonly { match: (t: Record<string, string>) => boolean; kind:
   { match: (t) => t.shop === "funeral_directors", kind: "funeral", fallbackName: "葬儀社" },
   { match: (t) => t.amenity === "gambling" || t.leisure === "adult_gaming_centre" || t.shop === "pachinko", kind: "pachinko", fallbackName: "パチンコ店" },
   { match: (t) => t.amenity === "nightclub" || t.amenity === "stripclub" || t.amenity === "brothel", kind: "adult", fallbackName: "風俗店" },
+  {
+    // 日本の OSM ではラブホテルは amenity=love_hotel / love_hotel=* / hotel=love_hotel などで登録される
+    match: (t) => t.amenity === "love_hotel" || Boolean(t.love_hotel && t.love_hotel !== "no") || t.hotel === "love_hotel",
+    kind: "lovehotel",
+    fallbackName: "ラブホテル",
+  },
   { match: (t) => t.amenity === "fuel", kind: "gas", fallbackName: "ガソリンスタンド" },
   { match: (t) => t.man_made === "gasometer" || t.man_made === "storage_tank" && /gas|lpg/i.test(t.content ?? ""), kind: "gastank", fallbackName: "ガスタンク" },
   { match: (t) => t.power === "substation", kind: "substation", fallbackName: "変電所" },
   { match: (t) => t.man_made === "wastewater_plant", kind: "sewage", fallbackName: "下水処理場" },
   {
-    match: (t) => t.amenity === "waste_transfer_station" || t.man_made === "incinerator" || t.landuse === "landfill" || t.amenity === "recycling" && t.recycling_type === "centre",
+    match: (t) =>
+      t.amenity === "waste_transfer_station" ||
+      t.man_made === "incinerator" ||
+      t.landuse === "landfill" ||
+      t.industrial === "scrap_yard" ||
+      t.amenity === "scrapyard" ||
+      (t.amenity === "recycling" && t.recycling_type === "centre"),
     kind: "waste",
     fallbackName: "ごみ処理施設",
   },
@@ -80,6 +92,11 @@ function buildQuery(center: LatLng, radiusM: number): string {
     "[shop=funeral_directors]",
     "[leisure=adult_gaming_centre]",
     "[shop=pachinko]",
+    "[amenity=love_hotel]",
+    "[love_hotel]",
+    "[hotel=love_hotel]",
+    "[industrial=scrap_yard]",
+    "[amenity=scrapyard]",
     `[name~"${NIMBY_OSM_NAME_REGEX}"]`,
   ];
   return `[out:json][timeout:20];(${selectors.map((s) => `nwr${a}${s};`).join("")});out center tags;`;

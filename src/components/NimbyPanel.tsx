@@ -69,9 +69,9 @@ export default function NimbyPanel({
           )}
           {error && <p className="mt-2 rounded-lg bg-red-50 p-2 text-xs text-red-700">{error}</p>}
           <p className="mt-3 text-[11px] leading-snug text-gray-500">
-            対象: パチンコ店・工場・ガソリンスタンド・キャバクラ／風俗店・ごみ処理／清掃工場・下水処理場・産廃処理場・
+            対象: パチンコ店・ラブホテル・工場・ガソリンスタンド・キャバクラ／風俗店・ごみ処理／清掃工場・下水処理場・産廃処理／解体・
             火葬場・墓地／霊園・神社／寺（境内に墓地がある場合あり）・葬儀場・大型物流施設・変電所・ガスタンク・牧場／養豚／養鶏。
-            Google マップと OpenStreetMap の登録情報を名称・業種から自動判定するため、誤検出や漏れがあります。
+            Google マップ・Yahoo!地図・OpenStreetMap の登録情報と、産業廃棄物処分業者名簿（埼玉県・さいたま市）から自動判定するため、誤検出や漏れがあります。
             暴力団事務所は公開データに存在しないため対象外です。
           </p>
         </div>
@@ -127,6 +127,11 @@ export default function NimbyPanel({
               半径300mの候補 {data.items.length} 件。名称・業種からの自動判定のため誤検出や漏れがあります。現地で必ずご確認ください。
               暴力団事務所は公開データに存在しないため対象外です。
             </p>
+            {data.yahoo === false && (
+              <p className="my-2 rounded-lg bg-gray-50 p-2 text-[11px] leading-snug text-gray-600">
+                パチンコ店・ラブホテルは、Google マップのデータでは探せないため一部しか見つからない場合があります（Yahoo!地図のデータを準備中）。
+              </p>
+            )}
             {data.partial && (
               <p className="my-2 rounded-lg bg-amber-50 p-2 text-[11px] leading-snug text-amber-800">
                 データ元の一部（OpenStreetMap または Google）に接続できなかったため、候補が少ない可能性があります。

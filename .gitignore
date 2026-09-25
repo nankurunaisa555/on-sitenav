@@ -19,3 +19,6 @@ next-env.d.ts
 
 # ハックラウンジ紹介記事の素材（リポジトリには含めない）
 On-siteNav-article/
+
+# データ作成スクリプトのキャッシュ
+scripts/.cache/

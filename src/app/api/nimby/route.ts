@@ -4,12 +4,16 @@ import { classifyNimby, NIMBY_NEARBY_TYPES } from "@/lib/nimby";
 import { NIMBY_GRID_DEG, NIMBY_SEARCH_RADIUS_M, snapToNimbyGrid } from "@/lib/nimby-grid";
 import type { LatLng, NimbyPlace, NimbyResponse } from "@/lib/types";
 import { fetchOsmNimby } from "@/lib/server/overpass";
+import { findSanpaiNear } from "@/lib/server/sanpai";
+import { fetchYolpNimby, yolpEnabled } from "@/lib/server/yolp";
 
 export const runtime = "nodejs";
 
 /**
  * 嫌悪施設の探索。無料枠に収めるため、有料の呼び出しは Google Nearby Search（業種タイプ指定）の1回だけ。
  * 寺社・墓地・工場・物流・変電所などは OpenStreetMap（無料）のタグと名称で探す。
+ * パチンコ店・ラブホテルは Google も OSM もほぼ持っていないので Yahoo! ローカルサーチ（無料・要 Client ID）で、
+ * 解体・産廃の処理施設は公式の処分業者名簿（同梱データ、埼玉県）で補う。
  *
  * 座標は約100mのグリッドに丸めて受け取り、Vercel の CDN に30日キャッシュさせる。
  * 同じ物件・近所を何度開いても、2回目以降は Google にも OSM にも問い合わせない。
@@ -94,7 +98,8 @@ export async function GET(request: Request) {
 
   let osmFailed = false;
   let googleFailed = false;
-  const [osm, near] = await Promise.all([
+  let yolpFailed = false;
+  const [osm, near, yolp, sanpai] = await Promise.all([
     fetchOsmNimby(center, QUERY_RADIUS_M).catch((err) => {
       console.error("[api/nimby] overpass", err);
       osmFailed = true;
@@ -105,6 +110,12 @@ export async function GET(request: Request) {
       googleFailed = true;
       return [] as GooglePlace[];
     }),
+    fetchYolpNimby(center, QUERY_RADIUS_M).catch((err) => {
+      console.error("[api/nimby] yolp", err);
+      yolpFailed = true;
+      return [] as NimbyPlace[];
+    }),
+    findSanpaiNear(center, QUERY_RADIUS_M),
   ]);
   if (osmFailed && googleFailed) {
     return NextResponse.json({ error: "嫌悪施設の検索に失敗しました" }, { status: 502 });
@@ -135,18 +146,26 @@ export async function GET(request: Request) {
       sub: { key: kind.key, label: kind.label, emoji: kind.emoji },
     });
   }
-  // OSM 由来を合流。Google 側と同じ施設（同種で近く、名称が同じか OSM 側に名称がない）なら落とす
-  for (const o of osm) {
+  // Yahoo!・OSM・処分業者名簿の順に合流。既出と同じ施設（同種で近く、名称が同じか名称がない）なら落とす
+  for (const o of [...yolp, ...osm, ...sanpai]) {
     const dup = items.some((g) => {
       const d = distanceMeters(g.location, o.location);
       if (g.sub.key !== o.sub.key) return false;
+      // 名簿の位置は町丁目の代表点のことがあるので、名称が同じなら離れていても同じ施設とみなす
+      if (o.id.startsWith("sanpai:")) return d < 400 && sameName(g.name, o.name);
       return (d < 60 && (sameName(g.name, o.name) || o.name === o.sub.label)) || d < 15;
     });
     if (!dup) items.push(o);
   }
   items.sort((a, b) => a.distanceM - b.distanceM);
 
-  const data: NimbyResponse = { center, radiusM: NIMBY_SEARCH_RADIUS_M, items, partial: osmFailed || googleFailed };
+  const data: NimbyResponse = {
+    center,
+    radiusM: NIMBY_SEARCH_RADIUS_M,
+    items,
+    partial: osmFailed || googleFailed || yolpFailed,
+    yahoo: yolpEnabled(),
+  };
   if (!data.partial) cache.set(key, { expires: Date.now() + CACHE_TTL_MS, data });
   return NextResponse.json(data, {
     headers: { "X-Cache": "MISS", "Cache-Control": data.partial ? CDN_CACHE_PARTIAL : CDN_CACHE, "X-Grid": String(NIMBY_GRID_DEG) },

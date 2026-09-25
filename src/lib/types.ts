@@ -45,6 +45,8 @@ export type NimbyResponse = {
   items: NimbyPlace[];
   /** OSM か Google のどちらかが取れなかった（結果が少ない可能性がある） */
   partial?: boolean;
+  /** Yahoo! ローカルサーチ（パチンコ店・ラブホテル）を使ったか。Client ID 未設定なら false */
+  yahoo?: boolean;
 };
 
 export type PlacesResponse = {

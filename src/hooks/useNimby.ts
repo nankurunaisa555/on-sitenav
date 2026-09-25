@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import { distanceMeters } from "@/lib/geo";
-import { NIMBY_MAX_DISTANCE_M, snapToNimbyGrid } from "@/lib/nimby-grid";
+import { NIMBY_DATA_VERSION, NIMBY_MAX_DISTANCE_M, snapToNimbyGrid } from "@/lib/nimby-grid";
 import type { LatLng, NimbyResponse } from "@/lib/types";
 
 /** 嫌悪施設の探索（オンデマンド）。ON/OFF と取得状態を持つ */
@@ -30,7 +30,7 @@ export function useNimby() {
     try {
       // 約100mのグリッドに丸めて問い合わせる（同じ近所なら CDN のキャッシュが返り、Google の課金が発生しない）
       const grid = snapToNimbyGrid(center);
-      const params = new URLSearchParams({ lat: grid.lat.toFixed(3), lng: grid.lng.toFixed(3) });
+      const params = new URLSearchParams({ lat: grid.lat.toFixed(3), lng: grid.lng.toFixed(3), v: NIMBY_DATA_VERSION });
       const res = await fetch(`/api/nimby?${params}`, { signal: controller.signal });
       const json = (await res.json()) as NimbyResponse | { error: string };
       if (!res.ok || "error" in json) throw new Error("error" in json ? json.error : `HTTP ${res.status}`);
