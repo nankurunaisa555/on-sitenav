@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   AdvancedMarker,
   Map,
@@ -55,6 +55,17 @@ export default function MapView({
   children,
 }: Props) {
   // 基準点が現在地そのものなら、青い現在地マーカーに任せて「基準点」ピンは出さない
+  // ブログ記事などに埋め込まれているときは、1本指・ホイールでページをスクロールできるよう
+  // 地図の操作を「2本指で移動・Ctrl＋ホイールでズーム」にする（直接開いたときは今まで通り）
+  const [embedded, setEmbedded] = useState(false);
+  useEffect(() => {
+    try {
+      setEmbedded(window.self !== window.top);
+    } catch {
+      setEmbedded(true); // 別サイトの枠の中だと window.top を読めないことがある
+    }
+  }, []);
+
   const showBasisPin =
     searchCenter && !(userLocation && distanceMeters(searchCenter, userLocation) < 5);
 
@@ -63,7 +74,7 @@ export default function MapView({
       mapId={MAP_ID}
       defaultCenter={initialCenter}
       defaultZoom={16}
-      gestureHandling="greedy"
+      gestureHandling={embedded ? "cooperative" : "greedy"}
       disableDefaultUI
       zoomControl={false}
       clickableIcons={false}
