@@ -16,6 +16,8 @@ import MapLegend from "./MapLegend";
 import InstallButton from "./InstallButton";
 import RouteOverlay from "./RouteOverlay";
 import ZoomButtons from "./ZoomButtons";
+import CustomPlacesModal from "./CustomPlacesModal";
+import { useCustomPlaces } from "@/hooks/useCustomPlaces";
 import { useFacts } from "@/hooks/useFacts";
 import { useGeolocation } from "@/hooks/useGeolocation";
 import { usePlaces } from "@/hooks/usePlaces";
@@ -25,8 +27,10 @@ import { useNimby } from "@/hooks/useNimby";
 import type { HazardKey } from "@/lib/facts-types";
 import { DEFAULT_CENTER, distanceMeters, formatDistance } from "@/lib/geo";
 import { CRIME_PREFS, guessPrefCode } from "@/lib/crime";
-import { LIST_CATEGORY_KEYS } from "@/lib/categories";
-import { NIMBY_KINDS, type NimbyKindKey } from "@/lib/nimby";
+import { CATEGORY_MAP, LIST_CATEGORY_KEYS } from "@/lib/categories";
+import { NIMBY_KIND_MAP, NIMBY_KINDS, type NimbyKindKey } from "@/lib/nimby";
+import { NIMBY_MAX_DISTANCE_M } from "@/lib/nimby-grid";
+import type { CustomPlace } from "@/lib/custom-places";
 import type { CategoryKey, LatLng, Place } from "@/lib/types";
 
 const RADIUS_M = 800;
@@ -98,6 +102,48 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     return code !== null ? CRIME_PREFS[code] ?? null : null;
   }, [searchCenter, mapCenter, initialCenter]);
 
+  const custom = useCustomPlaces();
+  const [showCustom, setShowCustom] = useState(false);
+  /** 登録した施設のうち、基準点の近くにあるもの（周辺施設用・嫌悪施設用） */
+  const customNear = useMemo(() => {
+    const toPlace = (c: CustomPlace, distanceM: number): Place | null => {
+      if (c.target === "nimby") {
+        const k = NIMBY_KIND_MAP.get(c.kind as NimbyKindKey);
+        if (!k) return null;
+        return {
+          id: `custom:${c.id}`,
+          name: c.name,
+          category: "nimby",
+          location: c.location,
+          address: `★登録${c.address ? `・${c.address}` : ""}`,
+          distanceM,
+          sub: { key: k.key, label: k.label, emoji: k.emoji },
+        };
+      }
+      const cat = CATEGORY_MAP.get(c.kind as CategoryKey);
+      if (!cat) return null;
+      return {
+        id: `custom:${c.id}`,
+        name: c.name,
+        category: cat.key,
+        location: c.location,
+        address: `★登録${c.address ? `・${c.address}` : ""}`,
+        distanceM,
+      };
+    };
+    const places: Place[] = [];
+    const nimbyItems: Place[] = [];
+    if (!searchCenter) return { places, nimbyItems };
+    for (const c of custom.items) {
+      const d = distanceMeters(searchCenter, c.location);
+      const p = toPlace(c, d);
+      if (!p) continue;
+      if (c.target === "nimby" && d <= NIMBY_MAX_DISTANCE_M) nimbyItems.push(p);
+      if (c.target === "places" && d <= RADIUS_M) places.push(p);
+    }
+    return { places, nimbyItems };
+  }, [custom.items, searchCenter]);
+
   const nearestStations = places.data?.nearestStations ?? [];
   // 役所・図書館は国交省データ由来。周辺施設の一覧・ピンにも「最寄り」として混ぜる
   const civicPlaces = useMemo(() => {
@@ -118,14 +164,34 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
   /** 周辺施設タブの一覧対象（駅・バス停を除き、役所・図書館を足す） */
   const listPlaces = useMemo(
     () =>
-      [...rawPlaces.filter((p) => p.category !== "station" && p.category !== "bus"), ...civicPlaces].sort(
-        (a, b) => a.distanceM - b.distanceM,
-      ),
-    [rawPlaces, civicPlaces],
+      [
+        ...rawPlaces.filter((p) => p.category !== "station" && p.category !== "bus"),
+        ...civicPlaces,
+        ...customNear.places,
+      ].sort((a, b) => a.distanceM - b.distanceM),
+    [rawPlaces, civicPlaces, customNear.places],
   );
+  /** 嫌悪施設（探索結果に、登録した施設を足したもの） */
+  const nimbyData = useMemo(() => {
+    if (!nimby.data) return null;
+    // 自分で登録したものと同じ施設（同種・100m以内・名前が同じ）が自動でも見つかっていたら、登録した方だけ出す
+    const norm = (s: string) => s.normalize("NFKC").replace(/[\s・()（）]/g, "").toLowerCase();
+    const mine = customNear.nimbyItems;
+    const auto = nimby.data.items.filter(
+      (a) =>
+        !mine.some(
+          (c) =>
+            c.sub?.key === a.sub.key &&
+            distanceMeters(c.location, a.location) < 100 &&
+            (norm(a.name).includes(norm(c.name)) || norm(c.name).includes(norm(a.name))),
+        ),
+    );
+    const items = [...auto, ...(mine as typeof nimby.data.items)].sort((a, b) => a.distanceM - b.distanceM);
+    return { ...nimby.data, items };
+  }, [nimby.data, customNear.nimbyItems]);
   const nimbyPlaces = useMemo(
-    () => (nimby.data ? nimby.data.items.filter((p) => activeKinds.has(p.sub.key as NimbyKindKey)) : []),
-    [nimby.data, activeKinds],
+    () => (nimbyData ? nimbyData.items.filter((p) => activeKinds.has(p.sub.key as NimbyKindKey)) : []),
+    [nimbyData, activeKinds],
   );
   /** 交通・学区・人口タブ用: 駅（半径外の最寄りも）・最寄りバス停2つ・学区の学校・役所・図書館 */
   const communityPlaces = useMemo(() => {
@@ -374,6 +440,18 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           onClose={() => setStreetView(null)}
         />
 
+        {showCustom && (
+          <CustomPlacesModal
+            items={custom.items}
+            basis={searchCenter}
+            saveFailed={custom.saveFailed}
+            onAdd={custom.add}
+            onRemove={custom.remove}
+            onImport={custom.importMany}
+            onClose={() => setShowCustom(false)}
+          />
+        )}
+
         {/* 地図上のオーバーレイ UI（上部） */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 shadow backdrop-blur">
@@ -459,6 +537,14 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
             </button>
             <button
               type="button"
+              onClick={() => setShowCustom(true)}
+              aria-label="施設の登録（設定）"
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-lg shadow-lg active:scale-95"
+            >
+              <span aria-hidden>⚙️</span>
+            </button>
+            <button
+              type="button"
               onClick={handleLocate}
               disabled={geo.status === "locating"}
               aria-label="現在地へ移動"
@@ -487,7 +573,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           >
             {tab === "nimby" ? (
               <NimbyPanel
-                data={nimby.data}
+                data={nimbyData}
                 loading={nimby.loading}
                 error={nimby.error}
                 hasSearch={searchCenter !== null}

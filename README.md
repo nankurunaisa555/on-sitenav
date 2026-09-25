@@ -43,6 +43,14 @@ npm run dev
 - アイコンは `npm run build:icons` で [scripts/build-icons.mjs](scripts/build-icons.mjs) の SVG 定義から再生成できます（`public/icons/*.png`, `src/app/icon.svg`）
 - マニフェストは [src/app/manifest.ts](src/app/manifest.ts)、サービスワーカーは `public/sw.js`（本番のみ登録。地図・API はキャッシュしない）
 
+## 施設の登録（⚙️ ボタン）
+
+地図データから自動で出ない施設（新しい店など）を、周辺施設のカテゴリか嫌悪施設の種類を選んで登録できます。
+
+- 場所は Google マップの共有リンク（`/api/locate` が短縮 URL をたどって座標と名前を読む）、住所（国土地理院の住所検索）、または今の基準点（地図の長押しで合わせる）から指定
+- 登録はこのブラウザの localStorage にだけ保存（別の端末へは「書き出し」「読み込み」の JSON で移す）
+- 自動で見つかった施設と同じもの（同種・100m以内・名前が同じ）を登録した場合は、登録した方だけを表示
+
 ## Google の無料枠
 
 Places API (New) の Nearby Search（Pro）は月5,000回まで無料です（Google の上限は1分単位でしか設定できないため、月の上限はコードでは保証できません。予算アラートの設定を推奨）。
