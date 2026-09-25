@@ -5,6 +5,7 @@ import { NIMBY_GRID_DEG, NIMBY_SEARCH_RADIUS_M, snapToNimbyGrid } from "@/lib/ni
 import type { LatLng, NimbyPlace, NimbyResponse } from "@/lib/types";
 import { fetchOsmNimby } from "@/lib/server/overpass";
 import { findSanpaiNear } from "@/lib/server/sanpai";
+import { findExtraNear } from "@/lib/server/nimby-extra";
 import { fetchYolpNimby, yolpEnabled } from "@/lib/server/yolp";
 
 export const runtime = "nodejs";
@@ -147,13 +148,14 @@ export async function GET(request: Request) {
     });
   }
   // Yahoo!・OSM・処分業者名簿の順に合流。既出と同じ施設（同種で近く、名称が同じか名称がない）なら落とす
-  for (const o of [...yolp, ...osm, ...sanpai]) {
+  for (const o of [...yolp, ...osm, ...sanpai, ...findExtraNear(center, QUERY_RADIUS_M)]) {
     const dup = items.some((g) => {
       const d = distanceMeters(g.location, o.location);
       if (g.sub.key !== o.sub.key) return false;
       // 名簿の位置は町丁目の代表点のことがあるので、名称が同じなら離れていても同じ施設とみなす
       if (o.id.startsWith("sanpai:")) return d < 400 && sameName(g.name, o.name);
-      return (d < 60 && (sameName(g.name, o.name) || o.name === o.sub.label)) || d < 15;
+      if (o.id.startsWith("extra:")) return d < 100;
+      return (d < 100 && sameName(g.name, o.name)) || (d < 60 && o.name === o.sub.label) || d < 15;
     });
     if (!dup) items.push(o);
   }

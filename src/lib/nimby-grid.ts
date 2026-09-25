@@ -9,7 +9,7 @@ export const NIMBY_MAX_DISTANCE_M = 350;
  * 探索結果の版。CDN に30日キャッシュされるので、データ元や判定を変えたら上げる（URL が変わり取り直しになる）。
  * 例: Yahoo! の Client ID を設定したとき、産廃名簿を更新したとき
  */
-export const NIMBY_DATA_VERSION = "2";
+export const NIMBY_DATA_VERSION = "3";
 /** 探索を共有するグリッド（度）。0.001度 ≒ 南北110m・東西90m */
 export const NIMBY_GRID_DEG = 0.001;
 
