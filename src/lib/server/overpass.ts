@@ -1,18 +1,24 @@
 import { distanceMeters } from "@/lib/geo";
-import { NIMBY_KIND_MAP, type NimbyKindKey } from "@/lib/nimby";
+import { classifyNimby, NIMBY_KIND_MAP, NIMBY_OSM_NAME_REGEX, type NimbyKindKey } from "@/lib/nimby";
 import type { LatLng, NimbyPlace } from "@/lib/types";
 
 /**
  * OpenStreetMap（Overpass API）から嫌悪施設に相当する地物を取る。
- * Google Places のテキスト検索は1クエリ最大20件で寺社・墓地・変電所などを取りこぼすため、
- * タグで網羅的に引ける OSM を併用する。無料・キー不要だが公開サーバーなので控えめに使う。
+ * タグ（amenity=place_of_worship など）と、名称の語（工場・物流・斎場など）の両方で探す。
+ * 無料・キー不要。探索の主役で、Google は業種タイプの Nearby Search 1回だけを併用する。
+ * 公開サーバーなので控えめに使う（結果は API 側でキャッシュ）。
  */
+/** 公開サーバー。本家が最も安定して速いので先頭。ほかは本家が遅いときの保険 */
 const ENDPOINTS = [
   "https://overpass-api.de/api/interpreter",
+  "https://lz4.overpass-api.de/api/interpreter",
   "https://overpass.kumi.systems/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
 ];
-const TIMEOUT_MS = 15_000;
+/** 本家が この時間で返らなければ、次のサーバーにも同時に投げる（ヘッジ） */
+const HEDGE_AFTER_MS = 5_000;
+/** 全体の締め切り */
+const DEADLINE_MS = 15_000;
 
 type OsmElement = {
   type: "node" | "way" | "relation";
@@ -72,29 +78,69 @@ function buildQuery(center: LatLng, radiusM: number): string {
     "[amenity=stripclub]",
     "[amenity=brothel]",
     "[shop=funeral_directors]",
+    "[leisure=adult_gaming_centre]",
+    "[shop=pachinko]",
+    `[name~"${NIMBY_OSM_NAME_REGEX}"]`,
   ];
   return `[out:json][timeout:20];(${selectors.map((s) => `nwr${a}${s};`).join("")});out center tags;`;
 }
 
-async function runQuery(query: string): Promise<OsmElement[]> {
-  let lastErr: unknown = null;
-  for (const ep of ENDPOINTS) {
-    try {
-      const res = await fetch(ep, {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "on-sitenav/1.0 (+https://on-sitenav.vercel.app)" },
-        body: `data=${encodeURIComponent(query)}`,
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-        cache: "no-store",
-      });
-      const text = await res.text();
-      if (!res.ok || !text.startsWith("{")) throw new Error(`overpass ${res.status}`);
-      return (JSON.parse(text) as { elements?: OsmElement[] }).elements ?? [];
-    } catch (err) {
-      lastErr = err;
-    }
-  }
-  throw lastErr instanceof Error ? lastErr : new Error("overpass failed");
+async function queryEndpoint(ep: string, query: string, signal: AbortSignal): Promise<OsmElement[]> {
+  const res = await fetch(ep, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded", "User-Agent": "on-sitenav/1.0 (+https://on-sitenav.vercel.app)" },
+    body: `data=${encodeURIComponent(query)}`,
+    signal,
+    cache: "no-store",
+  });
+  const text = await res.text();
+  if (!res.ok || !text.startsWith("{")) throw new Error(`overpass ${res.status} ${ep}`);
+  return (JSON.parse(text) as { elements?: OsmElement[] }).elements ?? [];
+}
+
+/**
+ * 公開サーバーは混み具合で応答時間が大きくばらつき（同じ問い合わせで3秒〜40秒超）、混雑時は 429 も返す。
+ * 本家に投げ、失敗したら即座に、返事がなければ HEDGE_AFTER_MS ごとに次のサーバーにも投げて、
+ * 最初に返った結果を使う（残りは中断）。
+ */
+function runQuery(query: string): Promise<OsmElement[]> {
+  return new Promise((resolve, reject) => {
+    const controllers: AbortController[] = [];
+    const errors: string[] = [];
+    let next = 0;
+    let running = 0;
+    let settled = false;
+    let hedgeTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hedgeTimer);
+      clearTimeout(deadline);
+      controllers.forEach((c) => c.abort());
+      fn();
+    };
+    const launch = () => {
+      if (settled || next >= ENDPOINTS.length) return;
+      const ep = ENDPOINTS[next++]!;
+      const controller = new AbortController();
+      controllers.push(controller);
+      running++;
+      clearTimeout(hedgeTimer);
+      hedgeTimer = setTimeout(launch, HEDGE_AFTER_MS);
+      queryEndpoint(ep, query, controller.signal).then(
+        (elements) => finish(() => resolve(elements)),
+        (err: unknown) => {
+          running--;
+          errors.push(err instanceof Error ? err.message : String(err));
+          if (next < ENDPOINTS.length) launch();
+          else if (running === 0) finish(() => reject(new Error(`overpass failed: ${errors.join(" / ")}`)));
+        },
+      );
+    };
+    const deadline = setTimeout(() => finish(() => reject(new Error(`overpass deadline: ${errors.join(" / ")}`))), DEADLINE_MS);
+    launch();
+  });
 }
 
 export async function fetchOsmNimby(center: LatLng, radiusM: number): Promise<NimbyPlace[]> {
@@ -106,10 +152,11 @@ export async function fetchOsmNimby(center: LatLng, radiusM: number): Promise<Ni
     const tags = el.tags ?? {};
     if (lat === undefined || lng === undefined) continue;
     const rule = TAG_RULES.find((r) => r.match(tags));
-    if (!rule) continue;
-    const kind = NIMBY_KIND_MAP.get(rule.kind);
+    const osmName = tags["name:ja"] ?? tags.name;
+    // タグで決まらなければ名称で判定（名称の語で拾った地物。除外語にかかれば落ちる）
+    const kind = rule ? NIMBY_KIND_MAP.get(rule.kind) : osmName ? classifyNimby(osmName, []) : null;
     if (!kind) continue;
-    const name = tags["name:ja"] ?? tags.name ?? rule.fallbackName;
+    const name = osmName ?? rule?.fallbackName ?? kind.label;
     const location = { lat, lng };
     const address = [tags["addr:city"], tags["addr:quarter"] ?? tags["addr:neighbourhood"], tags["addr:block_number"]]
       .filter(Boolean)

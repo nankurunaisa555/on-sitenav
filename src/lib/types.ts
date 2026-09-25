@@ -43,6 +43,8 @@ export type NimbyResponse = {
   center: LatLng;
   radiusM: number;
   items: NimbyPlace[];
+  /** OSM か Google のどちらかが取れなかった（結果が少ない可能性がある） */
+  partial?: boolean;
 };
 
 export type PlacesResponse = {

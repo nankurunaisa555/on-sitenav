@@ -135,44 +135,46 @@ export const NIMBY_KINDS: readonly NimbyKind[] = [
 
 export const NIMBY_KIND_MAP: ReadonlyMap<NimbyKindKey, NimbyKind> = new Map(NIMBY_KINDS.map((k) => [k.key, k]));
 
-/** 名称と Places のタイプから種別を判定する。該当しなければ null */
+/**
+ * 名称と Places のタイプから種別を判定する。該当しなければ null。
+ * タイプ（Google の業種）を名称より優先する。名称だけだと「〜 大宮」が「宮$」で神社扱いになるなどの誤判定が出るため。
+ */
 export function classifyNimby(name: string, types: readonly string[]): NimbyKind | null {
   for (const kind of NIMBY_KINDS) {
-    if (kind.exclude?.test(name)) continue;
-    if (kind.types?.some((t) => types.includes(t))) return kind;
-    if (kind.namePattern.test(name)) return kind;
+    if (!kind.exclude?.test(name) && kind.types?.some((t) => types.includes(t))) return kind;
+  }
+  for (const kind of NIMBY_KINDS) {
+    if (!kind.exclude?.test(name) && kind.namePattern.test(name)) return kind;
   }
   return null;
 }
 
 /**
- * テキスト検索に投げる語。1クエリ＝1課金なので同義語はまとめる。
- * ガソリンスタンド・墓地・葬儀場・ナイトクラブはタイプ指定の Nearby Search で拾う。
+ * Google Places の Nearby Search（1回＝1課金）で拾うタイプ。
+ * Google は業種タイプが付く店舗（ガソリンスタンド・葬儀場・夜の店など）に強い。
+ * 寺社・墓地・変電所・工場などは OpenStreetMap（無料）で拾う。
+ * なお Places API はパチンコ店をほぼ返さない（「パチンコ」「マルハン」で検索しても美容室などが返る）ので、
+ * 以前使っていた語句のテキスト検索（1回ごとに課金）は廃止した。
  */
-export const NIMBY_TEXT_QUERIES: readonly { query: string; fallback: NimbyKindKey | null }[] = [
-  // fallback: 名称から判定できなくても、その語で Google が返した結果を該当とみなす（精度の高い語だけ）
-  { query: "パチンコ", fallback: "pachinko" },
-  { query: "工場", fallback: null },
-  { query: "キャバクラ 風俗", fallback: null },
-  { query: "清掃工場 ごみ処理施設", fallback: null },
-  { query: "下水処理場 水再生センター", fallback: "sewage" },
-  { query: "産業廃棄物 処理", fallback: null },
-  { query: "火葬場 斎場", fallback: null },
-  { query: "霊園 墓地", fallback: null },
-  { query: "神社 寺", fallback: "shrine" },
-  { query: "物流センター 配送センター", fallback: null },
-  { query: "変電所", fallback: "substation" },
-  { query: "ガスタンク LPガス", fallback: "gastank" },
-  { query: "牧場 養豚 養鶏", fallback: "livestock" },
-];
-
-/** フォールバック適用時でも除外する、明らかに無関係な名称 */
-export const NIMBY_GLOBAL_EXCLUDE =
-  /駅$|バス停|コンビニ|セブン|ファミリーマート|ローソン|カフェ|喫茶|食堂|ラーメン|居酒屋|ホテル|マンション|アパート|公園|学校|保育|幼稚園|病院|クリニック|歯科|薬局|銭湯|温泉|ジム|PUDO|ステーション|営業所$|小売|スーパー|ドラッグ/;
-
 export const NIMBY_NEARBY_TYPES: readonly string[] = [
   "gas_station",
-  "cemetery",
   "funeral_home",
+  "cemetery",
   "night_club",
+  "casino",
 ];
+
+/**
+ * OpenStreetMap で名称から探すための語（Overpass の正規表現）。
+ * ここで拾った地物は classifyNimby で種別判定し、除外語にかかるもの（パン工場など）は落とす。
+ */
+export const NIMBY_OSM_NAME_REGEX = [
+  "工場", "製作所", "製造所", "鉄工", "プラント", "生コン",
+  "物流", "配送センター", "ロジスティ", "流通センター", "倉庫", "トラックターミナル",
+  "産業廃棄物", "廃棄物", "清掃", "クリーンセンター", "環境センター", "処理場", "処理センター", "焼却", "リサイクルセンター",
+  "下水", "水再生", "浄化センター", "ポンプ場",
+  "火葬", "斎場", "葬儀", "葬祭", "セレモニー", "霊園", "墓地", "墓苑",
+  "パチンコ", "スロット", "キャバクラ",
+  "変電所", "ガスタンク", "ガスホルダー", "LPガス",
+  "牧場", "養豚", "養鶏", "畜産",
+].join("|");

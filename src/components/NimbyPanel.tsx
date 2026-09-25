@@ -11,6 +11,8 @@ type Props = {
   error: string | null;
   hasSearch: boolean;
   onSearch: () => void;
+  /** 一部のデータ元に接続できなかったときの取り直し */
+  onRetry: () => void;
   /** 表示中の種別（既定は全部 ON） */
   activeKinds: ReadonlySet<NimbyKindKey>;
   onToggleKind: (key: NimbyKindKey) => void;
@@ -27,6 +29,7 @@ export default function NimbyPanel({
   error,
   hasSearch,
   onSearch,
+  onRetry,
   activeKinds,
   onToggleKind,
   onAllKinds,
@@ -68,7 +71,7 @@ export default function NimbyPanel({
           <p className="mt-3 text-[11px] leading-snug text-gray-500">
             対象: パチンコ店・工場・ガソリンスタンド・キャバクラ／風俗店・ごみ処理／清掃工場・下水処理場・産廃処理場・
             火葬場・墓地／霊園・神社／寺（境内に墓地がある場合あり）・葬儀場・大型物流施設・変電所・ガスタンク・牧場／養豚／養鶏。
-            Google マップの登録情報を名称・業種から自動判定するため、誤検出や漏れがあります。
+            Google マップと OpenStreetMap の登録情報を名称・業種から自動判定するため、誤検出や漏れがあります。
             暴力団事務所は公開データに存在しないため対象外です。
           </p>
         </div>
@@ -124,6 +127,19 @@ export default function NimbyPanel({
               半径300mの候補 {data.items.length} 件。名称・業種からの自動判定のため誤検出や漏れがあります。現地で必ずご確認ください。
               暴力団事務所は公開データに存在しないため対象外です。
             </p>
+            {data.partial && (
+              <p className="my-2 rounded-lg bg-amber-50 p-2 text-[11px] leading-snug text-amber-800">
+                データ元の一部（OpenStreetMap または Google）に接続できなかったため、候補が少ない可能性があります。
+                <button
+                  type="button"
+                  onClick={onRetry}
+                  disabled={loading}
+                  className="ml-1 rounded border border-amber-300 bg-white px-1.5 py-0.5 font-semibold text-amber-900 disabled:opacity-50"
+                >
+                  {loading ? "探索中…" : "もう一度探す"}
+                </button>
+              </p>
+            )}
             {data.items.length === 0 && (
               <p className="my-8 text-center text-sm text-gray-500">該当する施設は見つかりませんでした</p>
             )}

@@ -494,6 +494,9 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
                 onSearch={() => {
                   if (searchCenter) void nimby.toggle(searchCenter);
                 }}
+                onRetry={() => {
+                  if (searchCenter) void nimby.retry(searchCenter);
+                }}
                 activeKinds={activeKinds}
                 onToggleKind={toggleKind}
                 onAllKinds={() => setActiveKinds(new Set(ALL_NIMBY_KINDS))}
