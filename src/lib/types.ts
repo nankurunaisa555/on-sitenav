@@ -55,6 +55,19 @@ export type PlacesResponse = {
   nearestStations: Place[];
 };
 
+/** /api/places の応答（距離は丸めた地点から。クライアントで測り直す） */
+export type PlacesApiResponse = {
+  center: LatLng;
+  radiusM: number;
+  places: Place[];
+};
+
+/** /api/stations の応答（丸めた地点から近い順の駅候補） */
+export type StationsResponse = {
+  center: LatLng;
+  stations: Place[];
+};
+
 export type PlacesErrorResponse = {
   error: string;
 };

@@ -42,6 +42,14 @@ npm run dev
 - アイコンは `npm run build:icons` で [scripts/build-icons.mjs](scripts/build-icons.mjs) の SVG 定義から再生成できます（`public/icons/*.png`, `src/app/icon.svg`）
 - マニフェストは [src/app/manifest.ts](src/app/manifest.ts)、サービスワーカーは `public/sw.js`（本番のみ登録。地図・API はキャッシュしない）
 
+## Google の無料枠
+
+Places API (New) の Nearby Search（Pro）は月5,000回まで無料です（Google の上限は1分単位でしか設定できないため、月の上限はコードでは保証できません。予算アラートの設定を推奨）。
+
+- 周辺施設: 新しい場所1か所につき4回（＋最寄り駅1回。約500m四方で共有）
+- 嫌悪施設: 新しい場所1か所につき1回（ほかは OpenStreetMap で無料）
+- 座標をグリッドに丸めて問い合わせ、結果を Vercel CDN にキャッシュするので、同じ近所を2回目以降に開いても課金されません
+
 ## 地図に出るもの（タブ連動）
 
 地図のピンとレイヤーは、いま開いているタブに関係するものだけを表示します。
@@ -58,7 +66,7 @@ npm run dev
 
 | 情報 | データ元 | キー |
 | --- | --- | --- |
-| 周辺施設（駅・バス停・スーパー・病院・学校…）と距離・徒歩分数 | Google Places API (New) | Google |
+| 周辺施設（駅・バス停・スーパー・病院・学校…）と距離・徒歩分数 | Google Places API (New) Nearby Search。1検索4回＋最寄り駅1回（約500m四方で共有）。約100mグリッド単位で Vercel CDN に14日キャッシュ | Google |
 | 洪水・内水・高潮・津波・土砂災害の該当判定と地図重ね表示 | 国土地理院「重ねるハザードマップ」タイル | 不要 |
 | 地震の揺れやすさ（30年確率・表層地盤増幅率・微地形） | 防災科研 J-SHIS API | 不要 |
 | 地形分類（自然地形・人工地形）と土地の成り立ち・リスク | 国土地理院 地形分類ベクトルタイル（`landform-codes.json` は同 style.js から抽出） | 不要 |
@@ -104,7 +112,8 @@ src/
 │   ├── page.tsx              # キー未設定時の案内 / OnSiteNav を表示
 │   ├── globals.css
 │   └── api/
-│       ├── places/route.ts   # Places API (New) 中継。入力検証・グループ並列検索・10分キャッシュ
+│       ├── places/route.ts   # 周辺施設（Nearby Search 4グループ並列）。約100mグリッド・CDN 14日キャッシュ
+│       ├── stations/route.ts # 最寄り駅の候補（半径5km）。約500mグリッド・CDN 30日キャッシュ
 │       └── facts/route.ts    # 地点情報（ハザード・地震・用途地域・学区・人口）を並列取得
 ├── components/
 │   ├── OnSiteNav.tsx         # 画面全体の状態管理

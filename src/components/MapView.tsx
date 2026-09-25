@@ -259,9 +259,13 @@ function PanTo({ target, bottomInsetPx }: { target: LatLng | null; bottomInsetPx
   const map = useMap();
   const insetRef = useRef(bottomInsetPx);
   insetRef.current = bottomInsetPx;
+  /** シートの高さがまだ測れていないため、ずらしを保留している（測れたら適用する） */
+  const pendingRef = useRef(false);
+
   useEffect(() => {
     if (!map || !target) return;
     map.panTo(target);
+    pendingRef.current = false;
     // シートの高さは初回描画の直後に確定するので、少し待ってから最新値でずらす
     let applied = false;
     const apply = () => {
@@ -269,6 +273,8 @@ function PanTo({ target, bottomInsetPx }: { target: LatLng | null; bottomInsetPx
       applied = true;
       const offset = insetRef.current / 2;
       if (offset > 0) map.panBy(0, offset);
+      // まだ測れていなければ、測れた時点でずらす（読み込みが遅い端末で基準点が中央からずれるのを防ぐ）
+      else pendingRef.current = true;
     };
     const timer = setTimeout(apply, 80);
     const idle = map.addListener("idle", () => {
@@ -279,10 +285,20 @@ function PanTo({ target, bottomInsetPx }: { target: LatLng | null; bottomInsetPx
       }
       idle.remove();
     });
+    // 保留は一定時間で打ち切る（シートを閉じているときなど、0 のままが正しい場合）
+    const giveUp = setTimeout(() => (pendingRef.current = false), 3000);
     return () => {
       clearTimeout(timer);
+      clearTimeout(giveUp);
       idle.remove();
     };
   }, [map, target]);
+
+  useEffect(() => {
+    if (!map || !pendingRef.current || bottomInsetPx <= 0) return;
+    pendingRef.current = false;
+    map.panBy(0, bottomInsetPx / 2);
+  }, [map, bottomInsetPx]);
+
   return null;
 }
