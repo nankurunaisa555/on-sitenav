@@ -270,47 +270,47 @@ function PanTo({ target, bottomInsetPx }: { target: LatLng | null; bottomInsetPx
   const map = useMap();
   const insetRef = useRef(bottomInsetPx);
   insetRef.current = bottomInsetPx;
-  /** シートの高さがまだ測れていないため、ずらしを保留している（測れたら適用する） */
+  const targetRef = useRef(target);
+  targetRef.current = target;
+  /** シートの高さがまだ測れていないため、ずらしを保留している（測れたらもう一度合わせる） */
   const pendingRef = useRef(false);
+
+  /**
+   * 目標地点が「シートに隠れていない地図部分」の中央に来るよう、ずらした中心を計算して直接設定する。
+   * panBy のようなアニメーションを使わないのは、ブログ記事に埋め込まれて画面外にあるとき
+   * ブラウザが描画を止めていて、アニメーションでの移動が捨てられることがあるため。
+   */
+  const apply = useRef((m: google.maps.Map) => {
+    const t = targetRef.current;
+    if (!t) return;
+    const inset = insetRef.current;
+    const zoom = m.getZoom() ?? 16;
+    m.moveCamera({ center: { lat: t.lat - visibleCenterLatOffset(t.lat, zoom, inset), lng: t.lng } });
+    pendingRef.current = inset <= 0;
+  }).current;
 
   useEffect(() => {
     if (!map || !target) return;
-    map.panTo(target);
-    pendingRef.current = false;
-    // シートの高さは初回描画の直後に確定するので、少し待ってから最新値でずらす
-    let applied = false;
-    const apply = () => {
-      if (applied) return;
-      applied = true;
-      const offset = insetRef.current / 2;
-      if (offset > 0) map.panBy(0, offset);
-      // まだ測れていなければ、測れた時点でずらす（読み込みが遅い端末で基準点が中央からずれるのを防ぐ）
-      else pendingRef.current = true;
-    };
-    const timer = setTimeout(apply, 80);
+    apply(map);
+    // シートの高さは初回描画の直後に確定するので、少し待って最新値で合わせ直す
+    const timer = setTimeout(() => apply(map), 80);
     const idle = map.addListener("idle", () => {
-      // 地図がまだ描画されていなかった場合（非表示タブなど）は最初の idle で適用
-      if (!applied) {
-        clearTimeout(timer);
-        apply();
-      }
+      if (pendingRef.current) apply(map);
       idle.remove();
     });
-    // 保留は、利用者が地図を動かしたら取り消す（時間では打ち切らない。
-    // ブログ記事に埋め込まれて画面外にあると、ブラウザが描画を止めてシートの高さが測れるのが遅れるため）
+    // 利用者が地図を動かしたら、保留中の合わせ直しは取り消す
     const drag = map.addListener("dragstart", () => (pendingRef.current = false));
     return () => {
       clearTimeout(timer);
       idle.remove();
       drag.remove();
     };
-  }, [map, target]);
+  }, [map, target, apply]);
 
   useEffect(() => {
     if (!map || !pendingRef.current || bottomInsetPx <= 0) return;
-    pendingRef.current = false;
-    map.panBy(0, bottomInsetPx / 2);
-  }, [map, bottomInsetPx]);
+    apply(map);
+  }, [map, bottomInsetPx, apply]);
 
   return null;
 }
