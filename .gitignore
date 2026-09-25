@@ -16,3 +16,6 @@ next-env.d.ts
 .DS_Store
 *.tsbuildinfo
 .vercel
+
+# ハックラウンジ紹介記事の素材（リポジトリには含めない）
+On-siteNav-article/
