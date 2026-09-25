@@ -222,9 +222,10 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, searchCenter, nimby.data, nimby.loading, nimby.error]);
 
-  // タブを変えたらピンの選択は解除
+  // タブを変えたらピンの選択は解除し、そのタブのピンが見えるようにする
   useEffect(() => {
     setSelectedId(null);
+    setShowPins(true);
   }, [tab]);
 
   const runSearch = useCallback(
@@ -311,6 +312,8 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
       if (!searchCenter) return;
       // ルートを新しく出すときはピンを隠して経路を見やすくする
       if (!routing.routes.has(target)) setShowPins(false);
+      // 最後のルートを消したら、自動で隠したピンを戻す
+      else if (routing.routes.size === 1) setShowPins(true);
       void routing.toggle(target, label, searchCenter, destination);
     },
     [searchCenter, routing.toggle, routing.routes],
@@ -371,12 +374,6 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           onClose={() => setStreetView(null)}
         />
 
-        {tab === "land" && (hazardLayers.size > 0 || showCrime) && (
-          <div className="pointer-events-none absolute top-[calc(env(safe-area-inset-top)+3.5rem)] left-3 max-w-[70vw]">
-            <MapLegend hazards={hazardLayers} crime={showCrime} compact />
-          </div>
-        )}
-
         {/* 地図上のオーバーレイ UI（上部） */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex flex-col items-center gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
           <div className="pointer-events-auto flex items-center gap-2 rounded-full bg-white/95 px-4 py-2 shadow backdrop-blur">
@@ -393,7 +390,13 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               地図の中心を基準に検索
             </button>
           )}
-          {!moved && searchCenter && !loading && (
+          {/* 凡例（土地・災害タブでレイヤー ON のとき）。案内文と重ならないよう同じ列に積む */}
+          {tab === "land" && (hazardLayers.size > 0 || showCrime) && (
+            <div className="max-w-[80vw] self-start">
+              <MapLegend hazards={hazardLayers} crime={showCrime} compact />
+            </div>
+          )}
+          {!moved && searchCenter && !loading && tab !== "land" && (
             <span className="pointer-events-none rounded-full bg-black/55 px-3 py-1 text-[11px] text-white">
               距離は基準点からの直線距離。地図を長押しすると基準点を移して再検索します
             </span>
@@ -418,7 +421,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
         {/* 下部: 拡大縮小 / ピン・レイヤー・リスト・現在地 / ボトムシート */}
         <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col">
           <div className="mr-3 mb-2 flex justify-end">
-            <ZoomButtons />
+            <ZoomButtons bottomInsetPx={showSheet ? sheetHeight : 0} />
           </div>
           <div className="relative mr-3 mb-3 flex items-end justify-end gap-2">
             <button

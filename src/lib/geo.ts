@@ -29,3 +29,13 @@ export function walkMinutes(meters: number): number {
 
 /** 位置情報が取れないときのフォールバック（東京駅） */
 export const DEFAULT_CENTER: LatLng = { lat: 35.6812, lng: 139.7671 };
+
+/**
+ * シートに隠れていない地図部分の中心が、地図の幾何学的な中心より何度北にあるか。
+ * bottomInsetPx はシートの高さ（px）。見える部分の中心は、その半分だけ上にある。
+ */
+export function visibleCenterLatOffset(lat: number, zoom: number, bottomInsetPx: number): number {
+  if (bottomInsetPx <= 0) return 0;
+  const metersPerPx = (156_543.033_92 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom;
+  return ((bottomInsetPx / 2) * metersPerPx) / 111_320;
+}

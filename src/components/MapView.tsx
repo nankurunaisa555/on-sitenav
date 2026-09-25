@@ -8,7 +8,7 @@ import {
   type MapCameraChangedEvent,
 } from "@vis.gl/react-google-maps";
 import { CATEGORY_MAP } from "@/lib/categories";
-import { distanceMeters, formatDistance } from "@/lib/geo";
+import { distanceMeters, formatDistance, visibleCenterLatOffset } from "@/lib/geo";
 import type { LatLng, Place } from "@/lib/types";
 
 const MAP_ID = process.env.NEXT_PUBLIC_GOOGLE_MAP_ID || "DEMO_MAP_ID";
@@ -33,6 +33,11 @@ type Props = {
   /** 地図コンテキスト内に置く追加要素（オーバーレイなど） */
   children?: ReactNode;
 };
+
+/** シートに隠れていない地図部分の中心。「地図を動かしたか」の判定はここで比べる */
+function visibleCenter(center: LatLng, zoom: number, bottomInsetPx: number): LatLng {
+  return { lat: center.lat + visibleCenterLatOffset(center.lat, zoom, bottomInsetPx), lng: center.lng };
+}
 
 export default function MapView({
   initialCenter,
@@ -63,7 +68,9 @@ export default function MapView({
       zoomControl={false}
       clickableIcons={false}
       onClick={() => onSelect(null)}
-      onCameraChanged={(e: MapCameraChangedEvent) => onCameraChanged(e.detail.center)}
+      onCameraChanged={(e: MapCameraChangedEvent) =>
+        onCameraChanged(visibleCenter(e.detail.center, e.detail.zoom, bottomInsetPx ?? 0))
+      }
       className="h-full w-full"
     >
       <SearchRadius center={searchCenter} radiusM={radiusM} />
