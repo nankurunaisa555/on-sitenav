@@ -53,7 +53,7 @@ function tidyAddress(address: string): string {
 function toPlace(raw: GooglePlace, center: LatLng): Place | null {
   const lat = raw.location?.latitude;
   const lng = raw.location?.longitude;
-  const category = classify(raw.types ?? []);
+  const category = classify(raw.types ?? [], raw.displayName?.text ?? "");
   if (!raw.id || lat === undefined || lng === undefined || !category) return null;
   const location = { lat, lng };
   return {

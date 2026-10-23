@@ -51,7 +51,14 @@ export const LIST_CATEGORIES: readonly CategoryDef[] = CATEGORIES.filter(
 export const LIST_CATEGORY_KEYS: readonly CategoryKey[] = LIST_CATEGORIES.map((c) => c.key);
 
 /** Google の types 配列を、当アプリのカテゴリに割り当てる。優先順は CATEGORIES の並び。 */
-export function classify(types: readonly string[]): CategoryKey | null {
+/** 名称から保育園・幼稚園と判断できる語（学校として登録されていても保育園・幼稚園に分類する） */
+const CHILDCARE_NAME = /保育|幼稚園|こども園|子ども園|幼児園|ナーサリー|nursery|preschool|kindergarten/i;
+
+export function classify(types: readonly string[], name = ""): CategoryKey | null {
+  // 保育園・幼稚園の多くは Google で「幼稚園（preschool）」と「学校（school）」の両方が付いている。
+  // 学校より先に判定しないと学校に数えられてしまう。学童・病児保育は child_care_agency だけのことが多い
+  if (types.includes("preschool") || CHILDCARE_NAME.test(name)) return "childcare";
+  if (types.includes("child_care_agency") && !types.includes("school")) return "childcare";
   for (const cat of CATEGORIES) {
     if (cat.googleTypes.some((t) => types.includes(t))) return cat.key;
   }

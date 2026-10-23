@@ -16,12 +16,16 @@ const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 /**
  * 1リクエストあたり最大20件しか返らないため、カテゴリをグループ分けして並列に問い合わせる。
  * グループ数 = 課金される Nearby Search の回数（月5,000回まで無料）なので、むやみに増やさない。
- * 駅は /api/stations（粗いグリッドで近所と共有）から取るので、ここではバス停だけ。
+ * 駅は /api/stations（粗いグリッドで近所と共有）から取る。
  */
 const REQUEST_GROUPS: readonly { keys: readonly CategoryKey[]; max: number }[] = [
-  { keys: ["bus"], max: 10 },
+  // バス停と公園はどちらも数が少ないのでまとめる
+  { keys: ["bus", "park"], max: 20 },
   { keys: ["supermarket", "convenience", "pharmacy", "shopping"], max: 20 },
-  { keys: ["medical", "school", "childcare", "park"], max: 20 },
+  // 駅前は病院・学校・保育園がそれぞれ20件を超えるので、取り合わないよう分ける
+  { keys: ["medical"], max: 20 },
+  { keys: ["school"], max: 20 },
+  { keys: ["childcare"], max: 20 },
   { keys: ["restaurant", "bank", "post"], max: 20 },
 ];
 

@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState } from "react";
 import { distanceMeters } from "@/lib/geo";
 import { gridParam, snapToGrid } from "@/lib/grid";
-import { NEAREST_STATION_COUNT, PLACES_GRID_DEG, STATION_GRID_DEG } from "@/lib/places-config";
+import { NEAREST_STATION_COUNT, PLACES_DATA_VERSION, PLACES_GRID_DEG, STATION_GRID_DEG } from "@/lib/places-config";
 import { pickDistinctStations } from "@/lib/stations";
 import type {
   LatLng,
@@ -53,6 +53,7 @@ export function usePlaces() {
         lat: gridParam(pg.lat, PLACES_GRID_DEG),
         lng: gridParam(pg.lng, PLACES_GRID_DEG),
         radius: radiusM.toString(),
+        v: PLACES_DATA_VERSION,
       })}`;
       const stationsUrl = `/api/stations?${new URLSearchParams({
         lat: gridParam(sg.lat, STATION_GRID_DEG),
