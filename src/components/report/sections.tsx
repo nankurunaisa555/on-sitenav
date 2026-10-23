@@ -29,6 +29,8 @@ export type ReportSection = {
   key: ReportTabKey;
   title: string;
   lead: string;
+  /** 地図の高さ（px）。下の一覧が2段組みに収まるよう、内容の量に応じて決める */
+  mapHeight: number;
   markers: ReportMarker[];
   hazards?: ReadonlySet<HazardKey>;
   routes?: ReadonlyMap<RouteTarget, RouteState>;
@@ -39,7 +41,11 @@ export type ReportSection = {
 /* ---------- 小さな部品 ---------- */
 
 function H({ children }: { children: ReactNode }) {
-  return <h3 className="mt-3 mb-1 border-l-4 border-blue-600 pl-2 text-[13px] font-bold text-gray-900">{children}</h3>;
+  return (
+    <h3 className="mt-2 mb-1 border-l-4 border-blue-600 pl-2 text-[12px] font-bold text-gray-900 [break-after:avoid] first:mt-0">
+      {children}
+    </h3>
+  );
 }
 
 function Num({ n, color }: { n: number; color: string }) {
@@ -80,9 +86,22 @@ function Table({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
   );
 }
 
+/** 行が多い表は左右の段に半分ずつ分ける（1つの表は段をまたがないため） */
+function SplitTable({ head, rows }: { head: string[]; rows: ReactNode[][] }) {
+  if (rows.length <= 6) return <Table head={head} rows={rows} />;
+  const half = Math.ceil(rows.length / 2);
+  return (
+    <>
+      <Table head={head} rows={rows.slice(0, half)} />
+      <div className="h-2" />
+      <Table head={head} rows={rows.slice(half)} />
+    </>
+  );
+}
+
 function KV({ items }: { items: { k: string; v: ReactNode; strong?: boolean }[] }) {
   return (
-    <div className="osn-avoid-break grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+    <div className="osn-avoid-break grid grid-cols-2 gap-1">
       {items.map((it) => (
         <div key={it.k} className="rounded-md bg-gray-50 px-2 py-1">
           <div className="text-[10px] text-gray-500">{it.k}</div>
@@ -127,7 +146,7 @@ function placesSection(d: ReportInput): ReportSection {
       String(list.length),
       <div key="names">
         <div className="font-semibold text-gray-900">{first.name}</div>
-        {list.slice(1, 3).map((p) => (
+        {list.slice(1, 2).map((p) => (
           <div key={p.id} className="text-[10px] text-gray-500">
             {p.name}（{formatDistance(p.distanceM)}）
           </div>
@@ -138,13 +157,14 @@ function placesSection(d: ReportInput): ReportSection {
   }
   return {
     key: "places",
+    mapHeight: 400,
     title: "周辺施設",
     lead: "基準点から半径800m以内の施設。地図の番号は各カテゴリでいちばん近い施設です。",
     markers,
     body: (
       <>
         <H>カテゴリ別の件数といちばん近い施設</H>
-        <Table head={["", "カテゴリ", "件数", "近い施設（上位3件）", "距離"]} rows={rows} />
+        <SplitTable head={["", "カテゴリ", "件数", "近い施設", "距離"]} rows={rows} />
       </>
     ),
     sources: "Google Maps Platform（Places API）、国土数値情報（役所・図書館）",
@@ -158,13 +178,14 @@ function landSection(d: ReportInput): ReportSection {
   const markers: ReportMarker[] = [];
   const hazards = d.hazards.size > 0 ? d.hazards : new Set<HazardKey>(["flood"]);
   if (!f) {
-    return { key: "land", title: "土地・災害", lead: "", markers, hazards, body: <Empty>データを取得中です。</Empty>, sources: "" };
+    return { key: "land", title: "土地・災害", lead: "", mapHeight: 330, markers, hazards, body: <Empty>データを取得中です。</Empty>, sources: "" };
   }
   const shelters = f.shelters.shelters.slice(0, 3);
   shelters.forEach((s, i) => markers.push({ n: i + 1, location: s.location, color: "#16a34a" }));
   const lf = f.landform;
   return {
     key: "land",
+    mapHeight: 330,
     title: "土地・災害",
     lead: "ハザードの判定は基準点の地点について。地図は浸水想定などのレイヤーを重ねて表示しています。",
     markers,
@@ -312,6 +333,7 @@ function communitySection(d: ReportInput): ReportSection {
   const rate = (a: number, b: number) => `${b >= a ? "+" : ""}${(((b - a) / a) * 100).toFixed(1)}%`;
   return {
     key: "community",
+    mapHeight: 470,
     title: "交通・学区・人口",
     lead: "学区は国土数値情報（令和5年度）に基づく目安です。学校と最寄り駅までは道なりの徒歩ルートを表示しています。",
     markers,
@@ -379,6 +401,7 @@ function priceSection(d: ReportInput): ReportSection {
   const trades = t?.trades.slice(0, 8) ?? [];
   return {
     key: "price",
+    mapHeight: 430,
     title: "価格",
     lead: "近くの地価公示・地価調査と、同じ町名の取引事例、市区町村の家賃統計です。",
     markers,
@@ -387,20 +410,22 @@ function priceSection(d: ReportInput): ReportSection {
         <H>地価公示・地価調査{f ? `（${f.landPrice.year}年）` : ""}</H>
         {points.length ? (
           <Table
-            head={["", "所在地", "価格（㎡）", "坪単価", "前年比", "用途地域", "距離"]}
+            head={["", "所在地", "価格（㎡）", "前年比", "距離"]}
             rows={points.map((p, i) => [
               <Num key="n" n={i + 1} color="#0f766e" />,
               <div key="a">
                 <div className="font-semibold text-gray-900">{p.address}</div>
                 <div className="text-[10px] text-gray-500">
                   {p.kind}
+                  {p.zoning ? `・${p.zoning}` : ""}
                   {p.appraisal?.routePrice ? `・路線価 ${yen(p.appraisal.routePrice)}/㎡` : ""}
                 </div>
               </div>,
-              <span key="p" className="whitespace-nowrap font-semibold">{yen(p.pricePerSqm)}</span>,
-              <span key="t" className="whitespace-nowrap">{yen(p.pricePerSqm * 3.30578)}</span>,
+              <div key="p" className="whitespace-nowrap">
+                <div className="font-semibold">{yen(p.pricePerSqm)}</div>
+                <div className="text-[10px] text-gray-500">坪 {yen(p.pricePerSqm * 3.30578)}</div>
+              </div>,
               p.changeRate === null ? "—" : `${p.changeRate >= 0 ? "+" : ""}${p.changeRate.toFixed(1)}%`,
-              p.zoning ?? "—",
               <span key="d" className="whitespace-nowrap">{formatDistance(p.distanceM)}</span>,
             ])}
           />
@@ -410,14 +435,18 @@ function priceSection(d: ReportInput): ReportSection {
         <H>取引事例{t ? `（${t.city}${t.town}・${t.years[0]}〜${t.years[1]}年）` : ""}</H>
         {trades.length ? (
           <Table
-            head={["時期", "種類", "取引価格", "面積", "㎡単価", "建築年・構造"]}
+            head={["時期", "種類", "価格", "面積", "㎡単価"]}
             rows={trades.map((x) => [
-              x.period,
-              x.type,
+              <span key="pe" className="whitespace-nowrap">{x.period.replace("第", "").replace("四半期", "Q")}</span>,
+              <div key="ty">
+                <div>{x.type}</div>
+                {(x.buildingYear || x.structure) && (
+                  <div className="text-[10px] text-gray-500">{[x.buildingYear, x.structure].filter(Boolean).join("・")}</div>
+                )}
+              </div>,
               <span key="p" className="whitespace-nowrap">{`${Math.round(x.price / 10_000).toLocaleString()}万円`}</span>,
               x.area ? `${x.area}㎡` : "—",
               x.area ? yen(x.price / x.area) : "—",
-              [x.buildingYear, x.structure].filter(Boolean).join("・") || "—",
             ])}
           />
         ) : (
@@ -464,6 +493,7 @@ function nimbySection(d: ReportInput): ReportSection {
   }
   return {
     key: "nimby",
+    mapHeight: 430,
     title: "嫌悪施設",
     lead: "基準点から半径300m以内。名称・業種からの自動判定のため誤検出や漏れがあります。現地で必ずご確認ください。",
     markers,
@@ -473,7 +503,7 @@ function nimbySection(d: ReportInput): ReportSection {
         {d.nimbyItems === null ? (
           <Empty>探索中です。しばらくお待ちください。</Empty>
         ) : rows.length ? (
-          <Table head={["", "種類", "名称・住所", "距離"]} rows={rows} />
+          <SplitTable head={["", "種類", "名称・住所", "距離"]} rows={rows} />
         ) : (
           <Empty>半径300m以内に該当する施設は見つかりませんでした。</Empty>
         )}

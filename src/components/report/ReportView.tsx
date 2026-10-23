@@ -183,9 +183,10 @@ export default function ReportView(props: Props) {
             </header>
             {s.lead && <p className="mb-2 text-[11px] leading-relaxed text-gray-600">{s.lead}</p>}
 
-            <ReportMap center={center} markers={s.markers} hazards={s.hazards} routes={s.routes} height={215} />
+            <ReportMap center={center} markers={s.markers} hazards={s.hazards} routes={s.routes} height={s.mapHeight} />
 
-            {s.body}
+            {/* 一覧は左右2段組み（見出しと表は同じ段に。表は段をまたがない） */}
+            <div className="mt-2 columns-2 gap-5">{s.body}</div>
 
             <footer className="osn-avoid-break mt-3 border-t border-gray-200 pt-2 text-[9px] leading-relaxed text-gray-500">
               <div>出典：{s.sources}</div>
