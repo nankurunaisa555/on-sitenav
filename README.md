@@ -44,6 +44,16 @@ npm run dev
 - アイコン画像は `npm run build:icons` で [scripts/build-icons.mjs](scripts/build-icons.mjs) の SVG 定義から再生成（`public/icons/<案>/`、既定の案は `public/icons/*.png` と `src/app/icon.svg` にも出力）。案の一覧は `src/lib/app-icons.ts`
 - マニフェストは [src/app/manifest.webmanifest/route.ts](src/app/manifest.webmanifest/route.ts)（`?icon=<案>` でアイコンを切り替え）、サービスワーカーは `public/sw.js`（本番のみ登録。地図・API はキャッシュしない）
 
+## PDFレポート（📄 ボタン）
+
+今のタブ（または「すべてのタブ」）のまとめを A4 で表示し、「PDFに保存」でブラウザの印刷画面（PDFとして保存）を開きます。
+
+- 各ページは「見出し（基準点の住所・作成日時）→ 番号付きピンの地図 → 表 → 出典」。地図の番号と表の番号が対応
+- 地図は国土地理院の淡色地図タイル＋ハザードのタイル＋徒歩ルート（SVG）を並べた静的な画像（`src/components/report/ReportMap.tsx`）。Google マップ（JS）は画面外で描画を止めたり印刷時に描き直したりして PDF で空白・ピン抜けが起きるため使わない
+- プレビューも印刷と同じ A4 幅で描き、狭い画面では transform で見た目だけ縮小（印刷時にレイアウトが変わらないように）
+- 交通・学区タブでは学校2つと最寄り駅までの徒歩ルートを Routes API で取得（無料枠内）
+- 保存されるファイル名は `On-siteNav_<タブ名>_<住所>_<日付>`
+
 ## 施設の登録（⚙️ ボタン）
 
 地図データから自動で出ない施設（新しい店など）を、周辺施設のカテゴリか嫌悪施設の種類を選んで登録できます。

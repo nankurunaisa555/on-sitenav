@@ -29,3 +29,59 @@ body {
   background: #9ca3af;
   border-radius: 3px;
 }
+
+/* ---- PDF レポート（印刷） ----
+   レポートは body 直下に出す（#osn-report-root）。印刷時はそれ以外を隠し、
+   プレビュー用の固定配置・スクロールを解除して紙の流れに乗せる。 */
+@page {
+  size: A4 portrait;
+  margin: 12mm;
+}
+.osn-page {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+@media print {
+  body > *:not(#osn-report-root) {
+    display: none !important;
+  }
+  html,
+  body {
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+  #osn-report-root,
+  #osn-report-root .osn-report-scroll {
+    position: static !important;
+    inset: auto !important;
+    height: auto !important;
+    overflow: visible !important;
+    background: #fff !important;
+    padding: 0 !important;
+  }
+  .osn-no-print {
+    display: none !important;
+  }
+  .osn-report-outer {
+    width: auto !important;
+    height: auto !important;
+  }
+  .osn-report-inner {
+    width: auto !important;
+    transform: none !important;
+  }
+  .osn-page {
+    width: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  .osn-page + .osn-page {
+    break-before: page;
+  }
+  .osn-avoid-break {
+    break-inside: avoid;
+  }
+}

@@ -17,6 +17,7 @@ import InstallButton from "./InstallButton";
 import RouteOverlay from "./RouteOverlay";
 import ZoomButtons from "./ZoomButtons";
 import CustomPlacesModal from "./CustomPlacesModal";
+import ReportView from "./report/ReportView";
 import { useCustomPlaces } from "@/hooks/useCustomPlaces";
 import { useFacts } from "@/hooks/useFacts";
 import { useGeolocation } from "@/hooks/useGeolocation";
@@ -104,6 +105,7 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
 
   const custom = useCustomPlaces();
   const [showCustom, setShowCustom] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   /** 登録した施設のうち、基準点の近くにあるもの（周辺施設用・嫌悪施設用） */
   const customNear = useMemo(() => {
     const toPlace = (c: CustomPlace, distanceM: number): Place | null => {
@@ -440,6 +442,29 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
           onClose={() => setStreetView(null)}
         />
 
+        {showReport && searchCenter && (
+          <ReportView
+            initialTab={tab}
+            center={searchCenter}
+            address={
+              trades.data
+                ? `${facts.data?.zoning.prefecture ?? ""}${trades.data.city}${trades.data.town}`
+                : `${facts.data?.zoning.prefecture ?? ""}${facts.data?.zoning.city ?? ""}`
+            }
+            listPlaces={listPlaces}
+            stations={nearestStations}
+            buses={communityPlaces.filter((p) => p.category === "bus")}
+            facts={facts.data}
+            trades={trades.data}
+            nimbyItems={nimbyData?.items ?? null}
+            hazards={hazardLayers}
+            onNeedNimby={() => {
+              if (searchCenter && !nimby.data && !nimby.loading) void nimby.toggle(searchCenter);
+            }}
+            onClose={() => setShowReport(false)}
+          />
+        )}
+
         {showCustom && (
           <CustomPlacesModal
             items={custom.items}
@@ -534,6 +559,15 @@ export default function OnSiteNav({ apiKey }: { apiKey: string }) {
               }`}
             >
               <span aria-hidden>{showSheet ? "▤" : "▢"}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowReport(true)}
+              disabled={!searchCenter}
+              aria-label="このタブのまとめをPDFに保存"
+              className="pointer-events-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-lg shadow-lg active:scale-95 disabled:opacity-50"
+            >
+              <span aria-hidden>📄</span>
             </button>
             <button
               type="button"
